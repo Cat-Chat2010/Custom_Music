@@ -120,8 +120,8 @@ public class CustomMusicPlayer {
 
         ResourceLocation soundLocation;
         if (track.isCustom()) {
-            String soundName = track.getFileName().replace(".ogg", "");
-            soundLocation = ResourceLocation.fromNamespaceAndPath(CustomMusicMod.MODID, soundName);
+            String soundKey = com.cat.custommusic.resource.DynamicMusicPackResources.toSoundKey(track.getFileName());
+            soundLocation = ResourceLocation.fromNamespaceAndPath(CustomMusicMod.MODID, soundKey);
         } else {
             soundLocation = ResourceLocation.parse(track.getId());
         }

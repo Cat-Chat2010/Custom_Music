@@ -13,7 +13,6 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.MetadataSectionSerializer;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
 import net.minecraft.server.packs.resources.IoSupplier;
-import net.minecraft.server.packs.resources.Resource;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +27,11 @@ import java.util.*;
 /**
  * Динамічний віртуальний ресурс-пак, що на льоту генерує sounds.json
  * та надає .ogg аудіопотоки напряму з папки custom_music/tracks/.
+ * Забезпечує 100% валідні ідентифікатори ResourceLocation для будь-яких назв файлів.
  */
 public class DynamicMusicPackResources implements PackResources {
     private static final Logger LOGGER = LoggerFactory.getLogger(DynamicMusicPackResources.class);
-    private static final String NAMESPACE = CustomMusicMod.MODID;
+    public static final String NAMESPACE = CustomMusicMod.MODID;
 
     private final PackLocationInfo locationInfo;
     private final MusicDirectoryManager directoryManager;
@@ -39,6 +39,34 @@ public class DynamicMusicPackResources implements PackResources {
     public DynamicMusicPackResources(PackLocationInfo locationInfo, MusicDirectoryManager directoryManager) {
         this.locationInfo = locationInfo;
         this.directoryManager = directoryManager;
+    }
+
+    /**
+     * Генерує безпечний, валідний для ResourceLocation ключ звуку
+     * для будь-якого імені файлу (незалежно від пробілів, кирилиці чи спецсимволів).
+     */
+    public static String toSoundKey(String fileName) {
+        String base = fileName.replace(".ogg", "").toLowerCase(Locale.ROOT);
+        StringBuilder sb = new StringBuilder("s_");
+        for (char c : base.toCharArray()) {
+            if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.') {
+                sb.append(c);
+            } else {
+                sb.append('_');
+            }
+        }
+        sb.append('_').append(Math.abs(fileName.hashCode()));
+        return sb.toString();
+    }
+
+    private Map<String, Path> buildKeyMap() {
+        Map<String, Path> map = new HashMap<>();
+        List<Path> trackFiles = directoryManager.getTrackFiles();
+        for (Path p : trackFiles) {
+            String key = toSoundKey(p.getFileName().toString());
+            map.put(key, p);
+        }
+        return map;
     }
 
     @Override
@@ -67,12 +95,19 @@ public class DynamicMusicPackResources implements PackResources {
             return () -> new ByteArrayInputStream(jsonBytes);
         }
 
-        // 2. Запит аудіофайлу sounds/<track_name>.ogg
+        // 2. Запит аудіофайлу sounds/<soundKey>.ogg
         if (path.startsWith("sounds/") && path.endsWith(".ogg")) {
-            String fileName = path.substring("sounds/".length());
-            Path trackFile = directoryManager.getTracksDir().resolve(fileName);
-            if (Files.exists(trackFile)) {
+            String key = path.substring("sounds/".length(), path.length() - ".ogg".length());
+            Map<String, Path> keyMap = buildKeyMap();
+            Path trackFile = keyMap.get(key);
+            if (trackFile != null && Files.exists(trackFile)) {
                 return () -> Files.newInputStream(trackFile);
+            }
+
+            // Прямий fallback за ім'ям файлу
+            Path direct = directoryManager.getTracksDir().resolve(path.substring("sounds/".length()));
+            if (Files.exists(direct)) {
+                return () -> Files.newInputStream(direct);
             }
         }
 
@@ -91,11 +126,10 @@ public class DynamicMusicPackResources implements PackResources {
         }
 
         if (path.isEmpty() || path.startsWith("sounds")) {
-            List<Path> tracks = directoryManager.getTrackFiles();
-            for (Path track : tracks) {
-                String fileName = track.getFileName().toString();
-                ResourceLocation loc = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "sounds/" + fileName);
-                output.accept(loc, () -> Files.newInputStream(track));
+            Map<String, Path> keyMap = buildKeyMap();
+            for (Map.Entry<String, Path> entry : keyMap.entrySet()) {
+                ResourceLocation loc = ResourceLocation.fromNamespaceAndPath(NAMESPACE, "sounds/" + entry.getKey() + ".ogg");
+                output.accept(loc, () -> Files.newInputStream(entry.getValue()));
             }
         }
     }
@@ -121,27 +155,26 @@ public class DynamicMusicPackResources implements PackResources {
     }
 
     /**
-     * Генерує віртуальний sounds.json для всіх .ogg треків у папці tracks/.
+     * Генерує віртуальний sounds.json з гарантовано безпечними ResourceLocation ключами.
      */
     private byte[] generateSoundsJson() {
         JsonObject root = new JsonObject();
-        List<Path> trackFiles = directoryManager.getTrackFiles();
+        Map<String, Path> keyMap = buildKeyMap();
 
-        for (Path trackFile : trackFiles) {
-            String fileName = trackFile.getFileName().toString();
-            String soundName = fileName.replace(".ogg", "");
+        for (Map.Entry<String, Path> entry : keyMap.entrySet()) {
+            String soundKey = entry.getKey();
 
             JsonObject soundObj = new JsonObject();
             soundObj.addProperty("category", "music");
 
             JsonArray soundsList = new JsonArray();
             JsonObject trackItem = new JsonObject();
-            trackItem.addProperty("name", NAMESPACE + ":" + soundName);
-            trackItem.addProperty("stream", true); // Стрімінг з диска без забивання оперативної пам'яті
+            trackItem.addProperty("name", NAMESPACE + ":" + soundKey);
+            trackItem.addProperty("stream", true); // Стрімінг аудіо
             soundsList.add(trackItem);
 
             soundObj.add("sounds", soundsList);
-            root.add(soundName, soundObj);
+            root.add(soundKey, soundObj);
         }
 
         return root.toString().getBytes(StandardCharsets.UTF_8);
@@ -149,6 +182,5 @@ public class DynamicMusicPackResources implements PackResources {
 
     @Override
     public void close() {
-        // Ресурсів відкритого дескриптора тримати не потрібно
     }
 }

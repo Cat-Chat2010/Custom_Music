@@ -117,9 +117,13 @@ public class FfmpegConverter {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 LOGGER.info("[CustomMusic] Успішно сконвертовано: {}", outputOggFile.getFileName());
-                // Видаляємо вхідний файл із папки import/
-                Files.deleteIfExists(inputFile);
-                LOGGER.info("[CustomMusic] Видалено оригінал з import/: {}", inputFile.getFileName());
+                // Видаляємо файл ТІЛЬКИ якщо він лежить у папці import/ (оригінали користувача ніколи не видаляються!)
+                Path importDirAbs = directoryManager.getImportDir().toAbsolutePath().normalize();
+                Path inputAbs = inputFile.toAbsolutePath().normalize();
+                if (inputAbs.startsWith(importDirAbs)) {
+                    Files.deleteIfExists(inputFile);
+                    LOGGER.info("[CustomMusic] Видалено тимчасову копію з import/: {}", inputFile.getFileName());
+                }
                 return true;
             } else {
                 LOGGER.error("[CustomMusic] FFmpeg завершився з кодом {}. Лог:\n{}", exitCode, outputLog);

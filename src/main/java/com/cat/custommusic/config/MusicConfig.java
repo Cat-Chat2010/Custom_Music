@@ -109,7 +109,7 @@ public class MusicConfig {
         // 2. Додаємо нові кастомні файли, яких ще не було в конфігу
         for (Path p : diskOggFiles) {
             String fileName = p.getFileName().toString();
-            String id = "custommusic:" + fileName.replace(".ogg", "");
+            String id = "custommusic:" + com.cat.custommusic.resource.DynamicMusicPackResources.toSoundKey(fileName);
             if (!existingById.containsKey(id)) {
                 String displayName = fileName.replace(".ogg", "").replace('_', ' ');
                 TrackEntry newEntry = new TrackEntry(id, displayName, true, true, fileName);

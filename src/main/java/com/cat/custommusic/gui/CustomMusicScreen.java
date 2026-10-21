@@ -5,12 +5,18 @@ import com.cat.custommusic.audio.CustomMusicPlayer;
 import com.cat.custommusic.audio.FfmpegConverter;
 import com.cat.custommusic.config.MusicConfig;
 import com.cat.custommusic.config.PlaybackMode;
-import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Головний екран налаштувань та керування кастомною музикою.
@@ -19,6 +25,7 @@ public class CustomMusicScreen extends Screen {
     private final Screen parentScreen;
     private TrackListWidget trackList;
     private Button modeButton;
+    private Button addMusicButton;
     private Button importButton;
     private DelaySlider minDelaySlider;
     private DelaySlider maxDelaySlider;
@@ -33,7 +40,7 @@ public class CustomMusicScreen extends Screen {
     protected void init() {
         MusicConfig config = CustomMusicMod.getInstance().getConfig();
 
-        // 1. Верхній блок керування: Режим відтворення та кнопка імпорту
+        // 1. Верхній блок керування: Режим відтворення, кнопка додавання файлів та кнопка імпорту
         int topY = 32;
         int centerLeft = this.width / 2 - 155;
         int centerRight = this.width / 2 + 5;
@@ -48,10 +55,18 @@ public class CustomMusicScreen extends Screen {
         ).bounds(centerLeft, topY, 150, 20).build();
         this.addRenderableWidget(modeButton);
 
+        // Кнопка відкриття провідника / вибору файлів
+        this.addMusicButton = Button.builder(
+                Component.literal("📁 Додати музику"),
+                b -> openAddMusicAction()
+        ).bounds(centerRight, topY, 96, 20).build();
+        this.addRenderableWidget(addMusicButton);
+
+        // Кнопка конвертації та імпорту
         this.importButton = Button.builder(
-                Component.literal("Імпортувати треки"),
+                Component.literal("🔄"),
                 b -> startImportProcess()
-        ).bounds(centerRight, topY, 150, 20).build();
+        ).bounds(centerRight + 100, topY, 50, 20).build();
         this.addRenderableWidget(importButton);
 
         // 2. Слайдери затримок між треками (0 - 600 секунд)
@@ -105,6 +120,65 @@ public class CustomMusicScreen extends Screen {
         ).bounds(this.width / 2 + 5, bottomY, 150, 20).build());
     }
 
+    /**
+     * Відкриває нативне системне вікно вибору аудіофайлів для додавання музики.
+     * Обрані файли безпечно копіюються в папку гри (оригінали користувача НЕ видаляються!).
+     */
+    private void openAddMusicAction() {
+        this.statusMessage = "§eОберіть аудіофайли у системному вікні...";
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                // Створюємо фрейм поверх усіх вікон, щоб діалог вибору з'явився поверх гри
+                java.awt.Frame dummyFrame = new java.awt.Frame();
+                dummyFrame.setUndecorated(true);
+                dummyFrame.setLocationRelativeTo(null);
+                dummyFrame.setAlwaysOnTop(true);
+                dummyFrame.setVisible(true);
+                dummyFrame.toFront();
+
+                java.awt.FileDialog dialog = new java.awt.FileDialog(dummyFrame, "Оберіть аудіофайли для Minecraft", java.awt.FileDialog.LOAD);
+                dialog.setMultipleMode(true);
+                dialog.setAlwaysOnTop(true);
+                dialog.toFront();
+                dialog.requestFocus();
+                dialog.setVisible(true);
+
+                File[] selectedFiles = dialog.getFiles();
+                dummyFrame.dispose();
+
+                if (selectedFiles != null && selectedFiles.length > 0) {
+                    Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
+                    int copied = 0;
+                    for (File srcFile : selectedFiles) {
+                        Path dest = importDir.resolve(srcFile.getName());
+                        // БЕЗПЕЧНЕ КОПІЮВАННЯ: оригінальні файли залишаються на комп'ютері недоторканими!
+                        Files.copy(srcFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+                        copied++;
+                    }
+                    final int count = copied;
+                    if (this.minecraft != null) {
+                        this.minecraft.execute(() -> {
+                            this.statusMessage = "§aСкопійовано " + count + " треків! Конвертуємо...";
+                            startImportProcess();
+                        });
+                    }
+                } else {
+                    if (this.minecraft != null) {
+                        this.minecraft.execute(() -> this.statusMessage = "");
+                    }
+                }
+            } catch (Throwable t) {
+                // Fallback: якщо графічний діалог не підтримується системою, відкриваємо папку
+                Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
+                Util.getPlatform().openPath(importDir);
+                if (this.minecraft != null) {
+                    this.minecraft.execute(() -> this.statusMessage = "§eВідкрито папку import. Додайте ваші треки сюди.");
+                }
+            }
+        });
+    }
+
     private void startImportProcess() {
         FfmpegConverter converter = CustomMusicMod.getInstance().getFfmpegConverter();
         if (!converter.isAvailable()) {
@@ -120,7 +194,7 @@ public class CustomMusicScreen extends Screen {
                     if (this.minecraft != null) {
                         this.minecraft.execute(() -> {
                             this.importButton.active = true;
-                            this.statusMessage = count > 0 ? "§aСконвертовано " + count + " треків! Оновлюємо звуки..." : "§eНових файлів не знайдено.";
+                            this.statusMessage = count > 0 ? "§aСконвертовано " + count + " треків! Оновлюємо ресурси..." : "§eНових файлів не знайдено.";
                             CustomMusicMod.getInstance().refreshTracks();
                             refreshList();
                             // Перезавантажуємо ресурси, щоб Minecraft підтягнув нові .ogg треки
