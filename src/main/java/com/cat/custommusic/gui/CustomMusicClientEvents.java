@@ -24,16 +24,22 @@ public class CustomMusicClientEvents {
             int screenWidth = soundOptionsScreen.width;
             int screenHeight = soundOptionsScreen.height;
 
-            // Зручні параметри кнопки (легко адаптувати під кастомну текстуру або іконку)
-            int buttonWidth = 150;
-            int buttonHeight = 20;
-            int buttonX = screenWidth / 2 - (buttonWidth / 2);
-            int buttonY = screenHeight - 52; // Над стандартною кнопкою "Готово"
+            int buttonY = screenHeight - 28;
+            for (var child : event.getScreen().children()) {
+                if (child instanceof Button btn) {
+                    if (btn.getY() >= screenHeight - 36 && btn.getWidth() >= 150) {
+                        btn.setWidth(150);
+                        btn.setX(screenWidth / 2 + 5);
+                        buttonY = btn.getY();
+                        break;
+                    }
+                }
+            }
 
             Button customMusicButton = Button.builder(
                     Component.literal("🎵 Кастомна музика..."),
                     btn -> Minecraft.getInstance().setScreen(new CustomMusicScreen(soundOptionsScreen))
-            ).bounds(buttonX, buttonY, buttonWidth, buttonHeight).build();
+            ).bounds(screenWidth / 2 - 155, buttonY, 150, 20).build();
 
             event.addListener(customMusicButton);
         }
