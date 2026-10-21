@@ -93,6 +93,7 @@ public class CustomMusicClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         NowPlayingHud.tick();
+        com.cat.custommusic.audio.CustomMusicPlayer.getInstance().tick();
 
         Minecraft mc = Minecraft.getInstance();
         while (CustomMusicKeyBindings.OPEN_MUSIC_MENU_KEY.consumeClick()) {

@@ -4,7 +4,8 @@
   "package": "com.cat.custommusic.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "MusicManagerMixin"
+    "MusicManagerMixin",
+    "SoundManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

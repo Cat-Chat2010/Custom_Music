@@ -11,17 +11,28 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Головний екран налаштувань та керування кастомною музикою.
  */
 public class CustomMusicScreen extends Screen {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomMusicScreen.class);
+
     private final Screen parentScreen;
     private TrackListWidget trackList;
     private Button modeButton;
@@ -38,6 +49,11 @@ public class CustomMusicScreen extends Screen {
 
     @Override
     protected void init() {
+        // Гарантуємо, що відтворення звуку активне в налаштуваннях
+        if (this.minecraft != null) {
+            this.minecraft.getSoundManager().resume();
+        }
+
         MusicConfig config = CustomMusicMod.getInstance().getConfig();
 
         // 1. Верхній блок керування: Режим відтворення, кнопка додавання файлів та кнопка імпорту
@@ -121,59 +137,98 @@ public class CustomMusicScreen extends Screen {
     }
 
     /**
-     * Відкриває нативне системне вікно вибору аудіофайлів для додавання музики.
-     * Обрані файли безпечно копіюються в папку гри (оригінали користувача НЕ видаляються!).
+     * Відкриває нативне системне вікно вибору файлів (Windows OpenFileDialog / провідник).
+     * Обрана музика БЕЗПЕЧНО копіюється в папку гри (оригінали користувача залишаються недоторканими!).
      */
     private void openAddMusicAction() {
-        this.statusMessage = "§eОберіть аудіофайли у системному вікні...";
+        this.statusMessage = "§eОберіть музичні файли у вікні...";
 
         CompletableFuture.runAsync(() -> {
-            try {
-                // Створюємо фрейм поверх усіх вікон, щоб діалог вибору з'явився поверх гри
-                java.awt.Frame dummyFrame = new java.awt.Frame();
-                dummyFrame.setUndecorated(true);
-                dummyFrame.setLocationRelativeTo(null);
-                dummyFrame.setAlwaysOnTop(true);
-                dummyFrame.setVisible(true);
-                dummyFrame.toFront();
+            List<File> selectedFiles = new ArrayList<>();
+            String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
 
-                java.awt.FileDialog dialog = new java.awt.FileDialog(dummyFrame, "Оберіть аудіофайли для Minecraft", java.awt.FileDialog.LOAD);
-                dialog.setMultipleMode(true);
-                dialog.setAlwaysOnTop(true);
-                dialog.toFront();
-                dialog.requestFocus();
-                dialog.setVisible(true);
+            // 1. Для Windows запускаємо нативний OpenFileDialog окремим фоновим процесом
+            // Це відкриває справжній провідник вибору файлів перед екраном гри
+            if (osName.contains("win")) {
+                try {
+                    String psCommand = "Add-Type -AssemblyName System.Windows.Forms; " +
+                            "$d = New-Object System.Windows.Forms.OpenFileDialog; " +
+                            "$d.Multiselect = $true; " +
+                            "$d.Title = 'Оберіть музику для Minecraft'; " +
+                            "$d.Filter = 'Аудіо файли (*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac)|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|Всі файли (*.*)|*.*'; " +
+                            "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.FileNames }";
 
-                File[] selectedFiles = dialog.getFiles();
-                dummyFrame.dispose();
+                    ProcessBuilder pb = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", psCommand);
+                    Process process = pb.start();
 
-                if (selectedFiles != null && selectedFiles.length > 0) {
-                    Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
-                    int copied = 0;
-                    for (File srcFile : selectedFiles) {
-                        Path dest = importDir.resolve(srcFile.getName());
-                        // БЕЗПЕЧНЕ КОПІЮВАННЯ: оригінальні файли залишаються на комп'ютері недоторканими!
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String trimmed = line.trim();
+                            if (!trimmed.isEmpty()) {
+                                File f = new File(trimmed);
+                                if (f.isFile() && f.exists()) {
+                                    selectedFiles.add(f);
+                                }
+                            }
+                        }
+                    }
+                    process.waitFor();
+                } catch (Throwable t) {
+                    LOGGER.warn("[CustomMusic] Помилка PowerShell діалогу: ", t);
+                }
+            }
+
+            // 2. Для Mac/Linux або якщо PowerShell не відкрився — нативний AWT FileDialog
+            if (selectedFiles.isEmpty() && !osName.contains("win")) {
+                try {
+                    java.awt.Frame dummyFrame = new java.awt.Frame();
+                    dummyFrame.setUndecorated(true);
+                    dummyFrame.setLocationRelativeTo(null);
+                    dummyFrame.setAlwaysOnTop(true);
+                    dummyFrame.setVisible(true);
+                    dummyFrame.toFront();
+
+                    java.awt.FileDialog dialog = new java.awt.FileDialog(dummyFrame, "Оберіть музичні файли", java.awt.FileDialog.LOAD);
+                    dialog.setMultipleMode(true);
+                    dialog.setAlwaysOnTop(true);
+                    dialog.toFront();
+                    dialog.setVisible(true);
+
+                    File[] files = dialog.getFiles();
+                    dummyFrame.dispose();
+                    if (files != null) {
+                        Collections.addAll(selectedFiles, files);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+
+            // 3. Обробка обраних файлів
+            if (!selectedFiles.isEmpty()) {
+                Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
+                int copied = 0;
+                for (File srcFile : selectedFiles) {
+                    Path dest = importDir.resolve(srcFile.getName());
+                    try {
+                        // БЕЗПЕЧНЕ КОПІЮВАННЯ: оригінальні файли залишаються на ПК користувача в тому самому місці й форматі!
                         Files.copy(srcFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
                         copied++;
-                    }
-                    final int count = copied;
-                    if (this.minecraft != null) {
-                        this.minecraft.execute(() -> {
-                            this.statusMessage = "§aСкопійовано " + count + " треків! Конвертуємо...";
-                            startImportProcess();
-                        });
-                    }
-                } else {
-                    if (this.minecraft != null) {
-                        this.minecraft.execute(() -> this.statusMessage = "");
+                    } catch (Exception ex) {
+                        LOGGER.error("[CustomMusic] Не вдалося скопіювати файл: " + srcFile.getName(), ex);
                     }
                 }
-            } catch (Throwable t) {
-                // Fallback: якщо графічний діалог не підтримується системою, відкриваємо папку
-                Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
-                Util.getPlatform().openPath(importDir);
+
+                final int count = copied;
                 if (this.minecraft != null) {
-                    this.minecraft.execute(() -> this.statusMessage = "§eВідкрито папку import. Додайте ваші треки сюди.");
+                    this.minecraft.execute(() -> {
+                        this.statusMessage = "§aСкопійовано " + count + " треків! Конвертація...";
+                        startImportProcess();
+                    });
+                }
+            } else {
+                if (this.minecraft != null) {
+                    this.minecraft.execute(() -> this.statusMessage = "");
                 }
             }
         });
@@ -218,6 +273,11 @@ public class CustomMusicScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Забезпечуємо безперервне звучання музики в налаштуваннях
+        if (this.minecraft != null && CustomMusicPlayer.getInstance().isPlaying()) {
+            this.minecraft.getSoundManager().resume();
+        }
+
         super.render(graphics, mouseX, mouseY, partialTick);
 
         // Заголовок

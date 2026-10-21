@@ -15,9 +15,7 @@ public class MusicManagerMixin {
 
     @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
     private void onTick(CallbackInfo ci) {
-        // Делегуємо відтворення фонової музики нашому власному менеджеру
-        CustomMusicPlayer.getInstance().tick();
-        // Скасовуємо стандартне ванільне планування треків
+        // Скасовуємо стандартне ванільне планування треків (відтворенням керує CustomMusicPlayer через ClientTickEvent)
         ci.cancel();
     }
 }
