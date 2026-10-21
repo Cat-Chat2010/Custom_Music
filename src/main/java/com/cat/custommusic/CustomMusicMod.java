@@ -50,6 +50,7 @@ public class CustomMusicMod {
 
         // 4. Підписуємось на події життєвого циклу
         modEventBus.addListener(this::onClientSetup);
+        modEventBus.addListener(com.cat.custommusic.gui.CustomMusicKeyBindings::onRegisterKeyMappings);
         modEventBus.addListener((net.neoforged.neoforge.event.AddPackFindersEvent event) ->
                 com.cat.custommusic.resource.DynamicMusicPackFinder.onAddPackFinders(event, this.directoryManager));
     }

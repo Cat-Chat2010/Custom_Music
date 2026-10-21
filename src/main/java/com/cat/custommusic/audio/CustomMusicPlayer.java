@@ -131,6 +131,7 @@ public class CustomMusicPlayer {
             this.currentMusicInstance = SimpleSoundInstance.forMusic(soundEvent);
             this.currentTrack = track;
             this.minecraft.getSoundManager().play(this.currentMusicInstance);
+            com.cat.custommusic.gui.NowPlayingHud.show(track.getDisplayName());
             LOGGER.info("[CustomMusic] Відтворення треку [{}]: {}", track.isCustom() ? "Custom" : "Vanilla", track.getDisplayName());
         } catch (Exception e) {
             LOGGER.error("[CustomMusic] Помилка запуску треку: " + track.getDisplayName(), e);

@@ -1,6 +1,7 @@
 package com.cat.custommusic.gui;
 
 import com.cat.custommusic.CustomMusicMod;
+import com.cat.custommusic.audio.CustomMusicPlayer;
 import com.cat.custommusic.config.TrackEntry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -19,10 +20,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Прокручуваний віджет списку треків з підтримкою:
- * 1. Drag-and-Drop зміни порядку через 2 вертикальні смужки зліва.
- * 2. Увімкнення / вимкнення треку кліком по будь-якій частині рядка.
- * 3. Видалення кастомних файлів через компактну кнопку [✕].
+ * Прокручуваний віджет списку треків:
+ * 1. 2 вертикальні смужки зліва — перетягування (Drag-and-Drop).
+ * 2. Кнопка [▶] / [⏸] біля назви — миттєвий запуск або зупинка треку.
+ * 3. Клік по назві треку — увімкнення / вимкнення з ротації плейлиста.
+ * 4. Кнопка [✕] праворуч — видалення кастомного треку з диска.
  */
 public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidget.TrackEntryRow> {
     private final CustomMusicScreen parentScreen;
@@ -55,14 +57,13 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (isDraggingHandle && draggedIndex >= 0) {
-            // Плавний автоскрол при перетягуванні до країв списку
+            // Плавний автоскрол при підході до країв
             if (mouseY < this.getY() + 16) {
                 this.setScrollAmount(this.getScrollAmount() - 5);
             } else if (mouseY > this.getY() + this.getHeight() - 16) {
                 this.setScrollAmount(this.getScrollAmount() + 5);
             }
 
-            // Розрахунок цільового індексу під курсором
             int relativeY = (int) (mouseY - this.getY() + this.getScrollAmount() - 4);
             int targetIndex = relativeY / this.itemHeight;
             int maxIndex = getItemCount() - 1;
@@ -98,6 +99,7 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
     public class TrackEntryRow extends ContainerObjectSelectionList.Entry<TrackEntryRow> {
         private final TrackEntry track;
         private final int index;
+        private final Button playButton;
         private final Button deleteButton;
         private final List<AbstractWidget> children = new ArrayList<>();
 
@@ -105,7 +107,21 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
             this.track = track;
             this.index = index;
 
-            // Кнопка видалення файлу (активна тільки для кастомних треків)
+            // Кнопка [▶] / [⏸] для миттєвого відтворення або зупинки треку
+            this.playButton = Button.builder(
+                    Component.literal("▶"),
+                    b -> {
+                        CustomMusicPlayer player = CustomMusicPlayer.getInstance();
+                        if (player.isPlaying() && track.equals(player.getCurrentTrack())) {
+                            player.stopPlaying();
+                        } else {
+                            player.playTrack(track);
+                        }
+                    }
+            ).bounds(0, 0, 18, 18).build();
+            children.add(playButton);
+
+            // Кнопка видалення кастомного файлу
             if (track.isCustom()) {
                 this.deleteButton = Button.builder(
                         Component.literal("✕").withStyle(ChatFormatting.RED),
@@ -132,19 +148,24 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (button == 0) { // Лівий клік миші
-                // 1. Клік по кнопці видалення
+                // 1. Клік по кнопці Play / Pause
+                if (playButton.isMouseOver(mouseX, mouseY)) {
+                    return playButton.mouseClicked(mouseX, mouseY, button);
+                }
+
+                // 2. Клік по кнопці видалення (для кастомних)
                 if (deleteButton != null && deleteButton.isMouseOver(mouseX, mouseY)) {
                     return deleteButton.mouseClicked(mouseX, mouseY, button);
                 }
 
                 int rowLeft = TrackListWidget.this.getRowLeft();
-                // 2. Клік по ручці зліва (перші 18 пікселів) -> початок перетягування
-                if (mouseX >= rowLeft && mouseX <= rowLeft + 18) {
+                // 3. Клік по смужках зліва (перші 14 пікселів) -> початок перетягування
+                if (mouseX >= rowLeft && mouseX <= rowLeft + 14) {
                     TrackListWidget.this.startDragging(this.index);
                     return true;
                 }
 
-                // 3. Клік по будь-якій іншій частині треку -> Увімкнути / Вимкнути
+                // 4. Клік по рядку треку -> Увімкнути / Вимкнути з плейлиста
                 CustomMusicMod.getInstance().getConfig().toggleTrack(track);
                 Minecraft.getInstance().getSoundManager().play(
                         SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
@@ -159,7 +180,7 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
             Font font = Minecraft.getInstance().font;
             boolean beingDragged = TrackListWidget.this.isDragging(this.index);
 
-            // Підсвічування рядка (при наведенні або перетягуванні)
+            // Підсвічування рядка при ховері або перетягуванні
             if (beingDragged) {
                 graphics.fill(left, top, left + entryWidth, top + entryHeight, 0x4055FFFF);
             } else if (isHovered) {
@@ -167,44 +188,52 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
             }
 
             // 1. Дві тонкі вертикальні смужки зліва (ручка для Drag-and-Drop)
-            int handleX = left + 4;
+            int handleX = left + 3;
             int handleY = top + 4;
             int handleHeight = entryHeight - 8;
-            boolean hoverHandle = (mouseX >= left && mouseX <= left + 18 && mouseY >= top && mouseY <= top + entryHeight);
+            boolean hoverHandle = (mouseX >= left && mouseX <= left + 14 && mouseY >= top && mouseY <= top + entryHeight);
             int barColor = beingDragged ? 0xFF55FFFF : (hoverHandle ? 0xFFFFFFFF : 0xFF777777);
 
-            // Смужка 1 (ширина 2px)
             graphics.fill(handleX, handleY, handleX + 2, handleY + handleHeight, barColor);
-            // Смужка 2 (ширина 2px, через відступ 2px)
             graphics.fill(handleX + 4, handleY, handleX + 6, handleY + handleHeight, barColor);
 
-            // 2. Статус активності треку (зелена галочка або хрестик)
-            int statusX = left + 16;
+            // 2. Кнопка [▶] або [⏸]
+            CustomMusicPlayer player = CustomMusicPlayer.getInstance();
+            boolean isThisPlaying = player.isPlaying() && track.equals(player.getCurrentTrack());
+            playButton.setMessage(isThisPlaying
+                    ? Component.literal("⏸").withStyle(ChatFormatting.GREEN)
+                    : Component.literal("▶").withStyle(ChatFormatting.WHITE));
+            playButton.setX(left + 14);
+            playButton.setY(top + 3);
+            playButton.render(graphics, mouseX, mouseY, partialTick);
+
+            // 3. Статус у плейлисті (активний / вимкнений)
+            int statusX = left + 36;
             if (track.isEnabled()) {
-                graphics.drawString(font, "✔", statusX, top + 6, 0x55FF55);
+                graphics.drawString(font, "✔", statusX, top + 7, 0x55FF55);
             } else {
-                graphics.drawString(font, "✕", statusX, top + 6, 0x888888);
+                graphics.drawString(font, "✕", statusX, top + 7, 0x888888);
             }
 
-            // 3. Бейдж [Custom] / [Vanilla] та назва треку
-            int textX = left + 30;
+            // 4. Бейдж [Custom]/[Vanilla] та назва пісні
+            int textX = left + 48;
             String typeBadge = track.isCustom() ? "[Custom] " : "[Vanilla] ";
             Component badgeComponent = Component.literal(typeBadge).withStyle(track.isCustom() ? ChatFormatting.AQUA : ChatFormatting.GRAY);
 
             Component nameComponent;
             if (track.isEnabled()) {
-                nameComponent = Component.literal(track.getDisplayName()).withStyle(ChatFormatting.WHITE);
+                nameComponent = Component.literal(track.getDisplayName()).withStyle(isThisPlaying ? ChatFormatting.YELLOW : ChatFormatting.WHITE);
             } else {
                 nameComponent = Component.literal(track.getDisplayName()).withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.STRIKETHROUGH);
             }
 
             Component title = Component.empty().append(badgeComponent).append(nameComponent);
-            graphics.drawString(font, title, textX, top + 6, 0xFFFFFF);
+            graphics.drawString(font, title, textX, top + 7, 0xFFFFFF);
 
-            // 4. Кнопка видалення праворуч (тільки для кастомних файлів)
+            // 5. Кнопка видалення праворуч
             if (deleteButton != null) {
                 deleteButton.setX(left + entryWidth - 22);
-                deleteButton.setY(top + 2);
+                deleteButton.setY(top + 3);
                 deleteButton.render(graphics, mouseX, mouseY, partialTick);
             }
         }
