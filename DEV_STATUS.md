@@ -18,10 +18,11 @@
 ## ✅ Що вже повністю реалізовано
 
 ### 1. Базова конфігурація та система збірки
-- [x] Налаштовано `build.gradle` з плагіном `net.neoforged.moddev` версії `2.0.78-beta`.
+- [x] Налаштовано `build.gradle` з плагіном `net.neoforged.moddev` версії `2.0.148`.
 - [x] Налаштовано `gradle.properties` (версії MC 1.21.1, NeoForge, мапінги Parchment).
 - [x] Створено `settings.gradle` з репозиторіями та плагіном Foojay resolver.
-- [x] Підготовлено `gradlew.bat` та `gradle/wrapper/gradle-wrapper.properties` (Gradle 8.10.2).
+- [x] Підготовлено `gradlew.bat`, `gradle-wrapper.jar` та скрипт `build_mod.bat` (підхоплює Java 21 лаунчера).
+- [x] Успішно протестовано компіляцію та збірку JAR (`custommusic-1.0.0.jar`).
 - [x] Створено маніфест `src/main/resources/META-INF/neoforge.mods.toml` з client-only конфігурацією.
 - [x] Налаштовано конфігурацію Mixin `custommusic.mixins.json` та зв'язано її з модом.
 

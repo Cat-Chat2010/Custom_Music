@@ -63,7 +63,7 @@ public class DynamicMusicPackFinder implements RepositorySource {
                 false // Фіксований
         );
 
-        Pack pack = Pack.create(
+        Pack pack = Pack.readMetaAndCreate(
                 locationInfo,
                 resourcesSupplier,
                 PackType.CLIENT_RESOURCES,

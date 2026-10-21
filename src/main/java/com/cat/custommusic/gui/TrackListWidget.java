@@ -6,6 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -48,7 +49,7 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
         private final Button upButton;
         private final Button downButton;
         private final Button deleteButton;
-        private final List<GuiEventListener> children = new ArrayList<>();
+        private final List<AbstractWidget> children = new ArrayList<>();
 
         public TrackEntryRow(TrackEntry track, int index) {
             this.track = track;
