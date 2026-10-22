@@ -177,6 +177,21 @@ public class DynamicMusicPackResources implements PackResources {
             root.add(soundKey, soundObj);
         }
 
+        // 2. Реєструємо індивідуальні ванільні треки Minecraft для точного відтворення без рандому
+        for (com.cat.custommusic.config.VanillaTracks.VanillaTrackInfo info : com.cat.custommusic.config.VanillaTracks.ALL_VANILLA_TRACKS) {
+            JsonObject soundObj = new JsonObject();
+            soundObj.addProperty("category", "music");
+
+            JsonArray soundsList = new JsonArray();
+            JsonObject trackItem = new JsonObject();
+            trackItem.addProperty("name", info.soundPath());
+            trackItem.addProperty("stream", true);
+            soundsList.add(trackItem);
+
+            soundObj.add("sounds", soundsList);
+            root.add(info.key(), soundObj);
+        }
+
         return root.toString().getBytes(StandardCharsets.UTF_8);
     }
 

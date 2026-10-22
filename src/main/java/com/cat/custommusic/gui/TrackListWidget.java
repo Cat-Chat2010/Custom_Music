@@ -101,11 +101,13 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
         private final int index;
         private final Button playButton;
         private final Button deleteButton;
+        private final String durationText;
         private final List<AbstractWidget> children = new ArrayList<>();
 
         public TrackEntryRow(TrackEntry track, int index) {
             this.track = track;
             this.index = index;
+            this.durationText = com.cat.custommusic.audio.OggAudioHelper.getTrackDurationFormatted(track);
 
             // Кнопка [▶] / [⏸] для миттєвого відтворення або зупинки треку
             this.playButton = Button.builder(
@@ -215,10 +217,21 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
                 graphics.drawString(font, "✕", statusX, top + 7, 0x888888);
             }
 
-            // 4. Бейдж [Custom]/[Vanilla] та назва пісні
+            // 4. Бейдж [Custom]/[Vanilla]/[Disc] та назва пісні
             int textX = left + 48;
-            String typeBadge = track.isCustom() ? "[Custom] " : "[Vanilla] ";
-            Component badgeComponent = Component.literal(typeBadge).withStyle(track.isCustom() ? ChatFormatting.AQUA : ChatFormatting.GRAY);
+            String typeBadge;
+            ChatFormatting badgeStyle;
+            if (track.isCustom()) {
+                typeBadge = "[Custom] ";
+                badgeStyle = ChatFormatting.AQUA;
+            } else if (com.cat.custommusic.config.VanillaTracks.isDisc(track.getId())) {
+                typeBadge = "[Disc] ";
+                badgeStyle = ChatFormatting.GOLD;
+            } else {
+                typeBadge = "[Vanilla] ";
+                badgeStyle = ChatFormatting.GRAY;
+            }
+            Component badgeComponent = Component.literal(typeBadge).withStyle(badgeStyle);
 
             Component nameComponent;
             if (track.isEnabled()) {
@@ -227,10 +240,27 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
                 nameComponent = Component.literal(track.getDisplayName()).withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.STRIKETHROUGH);
             }
 
+            // 5. Тривалість пісні праворуч (біля кнопки видалення або правого краю)
+            int durWidth = font.width(this.durationText);
+            int durX = deleteButton != null ? (left + entryWidth - 26 - durWidth) : (left + entryWidth - 6 - durWidth);
+            graphics.drawString(font, this.durationText, durX, top + 7, 0xFFAAAAAA, false);
+
             Component title = Component.empty().append(badgeComponent).append(nameComponent);
+            int maxTitleWidth = durX - textX - 6;
+            if (maxTitleWidth > 20 && font.width(title) > maxTitleWidth) {
+                String truncatedName = font.plainSubstrByWidth(track.getDisplayName(), Math.max(10, maxTitleWidth - font.width(typeBadge) - font.width("..."))) + "...";
+                Component truncatedNameComp;
+                if (track.isEnabled()) {
+                    truncatedNameComp = Component.literal(truncatedName).withStyle(isThisPlaying ? ChatFormatting.YELLOW : ChatFormatting.WHITE);
+                } else {
+                    truncatedNameComp = Component.literal(truncatedName).withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.STRIKETHROUGH);
+                }
+                title = Component.empty().append(badgeComponent).append(truncatedNameComp);
+            }
+
             graphics.drawString(font, title, textX, top + 7, 0xFFFFFF);
 
-            // 5. Кнопка видалення праворуч
+            // 6. Кнопка видалення праворуч
             if (deleteButton != null) {
                 deleteButton.setX(left + entryWidth - 22);
                 deleteButton.setY(top + 3);

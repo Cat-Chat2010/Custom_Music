@@ -1,4 +1,5 @@
 {
   "key.categories.custommusic": "Custom_Music",
-  "key.custommusic.open_menu": "Music Settings"
+  "key.custommusic.open_menu": "Music Settings",
+  "key.custommusic.toggle_hud": "Toggle Music Mini-Player HUD"
 }

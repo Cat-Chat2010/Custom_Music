@@ -1,4 +1,5 @@
 {
   "key.categories.custommusic": "Custom_Music",
-  "key.custommusic.open_menu": "Налаштування музики"
+  "key.custommusic.open_menu": "Налаштування музики",
+  "key.custommusic.toggle_hud": "Міні-плеєр (постійний HUD)"
 }

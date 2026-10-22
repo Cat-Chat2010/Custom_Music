@@ -88,6 +88,14 @@ public class CustomMusicClientEvents {
     }
 
     /**
+     * Відображення HUD оверлею "Зараз грає" коли відкрито будь-який екран інтерфейсу (наприклад Ctrl + P).
+     */
+    @SubscribeEvent
+    public static void onScreenRender(ScreenEvent.Render.Post event) {
+        NowPlayingHud.render(event.getGuiGraphics());
+    }
+
+    /**
      * Обробка таймера HUD та гарячої клавіші виклику меню музики.
      */
     @SubscribeEvent
@@ -100,6 +108,10 @@ public class CustomMusicClientEvents {
             if (mc.screen == null) {
                 mc.setScreen(new CustomMusicScreen(null));
             }
+        }
+
+        while (CustomMusicKeyBindings.TOGGLE_HUD_KEY.consumeClick()) {
+            NowPlayingHud.togglePinned();
         }
     }
 }

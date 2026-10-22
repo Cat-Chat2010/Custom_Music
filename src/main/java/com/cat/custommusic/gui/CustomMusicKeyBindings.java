@@ -23,7 +23,17 @@ public class CustomMusicKeyBindings {
             CATEGORY
     );
 
+    public static final KeyMapping TOGGLE_HUD_KEY = new KeyMapping(
+            "key.custommusic.toggle_hud",
+            KeyConflictContext.IN_GAME,
+            KeyModifier.CONTROL,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_O,
+            CATEGORY
+    );
+
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         event.register(OPEN_MUSIC_MENU_KEY);
+        event.register(TOGGLE_HUD_KEY);
     }
 }

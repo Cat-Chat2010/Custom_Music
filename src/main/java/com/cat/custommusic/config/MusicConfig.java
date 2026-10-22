@@ -88,8 +88,9 @@ public class MusicConfig {
         }
 
         List<TrackEntry> updatedTracks = new ArrayList<>();
+        Set<String> updatedIds = new HashSet<>();
 
-        // 1. Спочатку зберігаємо вже існуючі треки, якщо вони ще існують на диску або є ванільними
+        // 1. Спочатку зберігаємо вже існуючі треки, якщо вони ще існують на диску або є валідними ванільними треками
         Set<String> presentOggNames = new HashSet<>();
         for (Path p : diskOggFiles) {
             presentOggNames.add(p.getFileName().toString());
@@ -99,10 +100,20 @@ public class MusicConfig {
             if (existing.isCustom()) {
                 if (presentOggNames.contains(existing.getFileName())) {
                     updatedTracks.add(existing);
+                    updatedIds.add(existing.getId());
                 }
             } else {
-                // Ванільний трек залишаємо
-                updatedTracks.add(existing);
+                String id = existing.getId();
+                if (id != null && id.contains("echo_in_the_canyon")) {
+                    id = id.replace("echo_in_the_canyon", "echo_in_the_wind");
+                    existing = new TrackEntry(id, "Aaron Cherof - Echo in the Wind", false, existing.isEnabled(), null);
+                }
+                VanillaTracks.VanillaTrackInfo info = VanillaTracks.findByKey(id);
+                if (info != null && !updatedIds.contains(existing.getId())) {
+                    existing.setDisplayName(info.displayName());
+                    updatedTracks.add(existing);
+                    updatedIds.add(existing.getId());
+                }
             }
         }
 
@@ -110,19 +121,21 @@ public class MusicConfig {
         for (Path p : diskOggFiles) {
             String fileName = p.getFileName().toString();
             String id = "custommusic:" + com.cat.custommusic.resource.DynamicMusicPackResources.toSoundKey(fileName);
-            if (!existingById.containsKey(id)) {
+            if (!updatedIds.contains(id)) {
                 String displayName = fileName.replace(".ogg", "").replace('_', ' ');
                 TrackEntry newEntry = new TrackEntry(id, displayName, true, true, fileName);
                 updatedTracks.add(newEntry);
+                updatedIds.add(id);
                 LOGGER.info("[CustomMusic] Додано новий кастомний трек до плейлиста: {}", fileName);
             }
         }
 
-        // 3. Додаємо ванільні треки, якщо їх ще не було (наприклад при першому старті)
+        // 3. Додаємо ванільні треки, якщо їх ще не було (наприклад при першому старті або нові оновлення)
         if (defaultVanillaTracks != null) {
             for (TrackEntry vanilla : defaultVanillaTracks) {
-                if (!existingById.containsKey(vanilla.getId())) {
+                if (!updatedIds.contains(vanilla.getId())) {
                     updatedTracks.add(vanilla);
+                    updatedIds.add(vanilla.getId());
                 }
             }
         }

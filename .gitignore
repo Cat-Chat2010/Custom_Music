@@ -14,7 +14,7 @@ out/
 # Minecraft run directory
 run/
 
-# OS generated
-Thumbs.db
-Desktop.ini
-.DS_Store
+# Scratch and archives
+scratch/
+*.zip
+
