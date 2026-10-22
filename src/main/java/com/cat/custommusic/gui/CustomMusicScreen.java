@@ -236,20 +236,29 @@ public class CustomMusicScreen extends Screen {
 
     private void startImportProcess() {
         FfmpegConverter converter = CustomMusicMod.getInstance().getFfmpegConverter();
-        if (!converter.isAvailable()) {
-            this.statusMessage = "§cFFmpeg не знайдено в PATH чи custom_music/ffmpeg/!";
+        List<Path> importFiles = CustomMusicMod.getInstance().getDirectoryManager().getImportFiles();
+        if (importFiles.isEmpty()) {
+            this.statusMessage = "§eПапка import/ порожня.";
+            return;
+        }
+
+        boolean hasOgg = importFiles.stream().anyMatch(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
+        boolean hasNonOgg = importFiles.stream().anyMatch(p -> !p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
+
+        if (hasNonOgg && !converter.isAvailable() && !hasOgg) {
+            this.statusMessage = "§cДля MP3/WAV потрібен FFmpeg! Або використовуйте .ogg треки.";
             return;
         }
 
         this.importButton.active = false;
-        this.statusMessage = "§eКонвертація файлів із папки import/...";
+        this.statusMessage = "§eОбробка треків із папки import/...";
 
         converter.convertAllImportsAsync(msg -> this.statusMessage = "§7" + msg)
                 .thenAccept(count -> {
                     if (this.minecraft != null) {
                         this.minecraft.execute(() -> {
                             this.importButton.active = true;
-                            this.statusMessage = count > 0 ? "§aСконвертовано " + count + " треків! Оновлюємо ресурси..." : "§eНових файлів не знайдено.";
+                            this.statusMessage = count > 0 ? "§aІмпортовано " + count + " треків! Оновлюємо ресурси..." : "§eНових треків не імпортовано.";
                             CustomMusicMod.getInstance().refreshTracks();
                             refreshList();
                             // Перезавантажуємо ресурси, щоб Minecraft підтягнув нові .ogg треки

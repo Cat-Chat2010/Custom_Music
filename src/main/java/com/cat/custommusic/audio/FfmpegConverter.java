@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -83,8 +84,29 @@ public class FfmpegConverter {
 
     /**
      * Конвертує один аудіофайл у .ogg (Vorbis 44.1kHz Stereo).
+     * Якщо файл уже має формат .ogg, він копіюється напряму без потреби у FFmpeg.
      */
     public boolean convertFile(Path inputFile, Path outputOggFile) {
+        String fileName = inputFile.getFileName().toString();
+        boolean isOgg = fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".ogg");
+
+        if (isOgg) {
+            try {
+                LOGGER.info("[CustomMusic] Прямий імпорт OGG (без FFmpeg): {} -> {}", fileName, outputOggFile.getFileName());
+                Files.copy(inputFile, outputOggFile, StandardCopyOption.REPLACE_EXISTING);
+                Path importDirAbs = directoryManager.getImportDir().toAbsolutePath().normalize();
+                Path inputAbs = inputFile.toAbsolutePath().normalize();
+                if (inputAbs.startsWith(importDirAbs)) {
+                    Files.deleteIfExists(inputFile);
+                    LOGGER.info("[CustomMusic] Видалено тимчасову копію з import/: {}", fileName);
+                }
+                return true;
+            } catch (Exception e) {
+                LOGGER.error("[CustomMusic] Помилка прямого копіювання OGG файлу: " + fileName, e);
+                return false;
+            }
+        }
+
         if (!isAvailable()) {
             LOGGER.error("[CustomMusic] Неможливо конвертувати {}: FFmpeg відсутній!", inputFile.getFileName());
             return false;
@@ -136,17 +158,12 @@ public class FfmpegConverter {
     }
 
     /**
-     * Асинхронно сканує папку import/ і конвертує всі знайдені аудіофайли.
+     * Асинхронно сканує папку import/ і імпортує аудіофайли.
+     * Файли .ogg обробляються напряму без FFmpeg, навіть якщо FFmpeg не встановлено.
+     * Для інших форматів (.mp3, .wav тощо) за потреби використовується FFmpeg.
      */
     public CompletableFuture<Integer> convertAllImportsAsync(Consumer<String> progressConsumer) {
         return CompletableFuture.supplyAsync(() -> {
-            if (!isAvailable()) {
-                if (progressConsumer != null) {
-                    progressConsumer.accept("FFmpeg не знайдено!");
-                }
-                return 0;
-            }
-
             List<Path> importFiles = directoryManager.getImportFiles();
             if (importFiles.isEmpty()) {
                 if (progressConsumer != null) {
@@ -155,12 +172,17 @@ public class FfmpegConverter {
                 return 0;
             }
 
-            int convertedCount = 0;
             int total = importFiles.size();
+            int processedCount = 0;
+            int skippedDueToNoFfmpeg = 0;
+            boolean ffmpegReady = isAvailable();
 
             for (int i = 0; i < total; i++) {
                 Path input = importFiles.get(i);
-                String baseName = getBaseName(input.getFileName().toString());
+                String fileName = input.getFileName().toString();
+                boolean isOgg = fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".ogg");
+
+                String baseName = getBaseName(fileName);
                 String sanitizedName = sanitizeFileName(baseName);
                 Path output = directoryManager.getTracksDir().resolve(sanitizedName + ".ogg");
 
@@ -171,21 +193,45 @@ public class FfmpegConverter {
                     counter++;
                 }
 
-                if (progressConsumer != null) {
-                    progressConsumer.accept(String.format("Конвертація (%d/%d): %s", i + 1, total, input.getFileName()));
-                }
+                if (isOgg) {
+                    // Файли .ogg переносимо НАПРЯМУ без FFmpeg!
+                    try {
+                        if (progressConsumer != null) {
+                            progressConsumer.accept(String.format("Імпорт OGG (%d/%d): %s", i + 1, total, fileName));
+                        }
+                        Files.move(input, output, StandardCopyOption.REPLACE_EXISTING);
+                        processedCount++;
+                        LOGGER.info("[CustomMusic] Імпортовано OGG трек безпосередньо (без FFmpeg): {} -> {}", fileName, output.getFileName());
+                    } catch (Exception e) {
+                        LOGGER.error("[CustomMusic] Не вдалося перемістити OGG файл: " + fileName, e);
+                    }
+                } else {
+                    if (!ffmpegReady) {
+                        skippedDueToNoFfmpeg++;
+                        LOGGER.warn("[CustomMusic] Пропущено {}: для цього формату потрібен FFmpeg", fileName);
+                        continue;
+                    }
 
-                boolean success = convertFile(input, output);
-                if (success) {
-                    convertedCount++;
+                    if (progressConsumer != null) {
+                        progressConsumer.accept(String.format("Конвертація (%d/%d): %s", i + 1, total, fileName));
+                    }
+
+                    boolean success = convertFile(input, output);
+                    if (success) {
+                        processedCount++;
+                    }
                 }
             }
 
             if (progressConsumer != null) {
-                progressConsumer.accept(String.format("Завершено! Сконвертовано треків: %d з %d", convertedCount, total));
+                if (skippedDueToNoFfmpeg > 0) {
+                    progressConsumer.accept(String.format("Імпортовано: %d. Пропущено: %d (потрібен FFmpeg для MP3/WAV)", processedCount, skippedDueToNoFfmpeg));
+                } else {
+                    progressConsumer.accept(String.format("Завершено! Імпортовано треків: %d з %d", processedCount, total));
+                }
             }
 
-            return convertedCount;
+            return processedCount;
         }, EXECUTOR);
     }
 

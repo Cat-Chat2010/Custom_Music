@@ -41,7 +41,7 @@ public class CustomMusicMod {
         if (ffmpegFound) {
             LOGGER.info("[CustomMusic] FFmpeg готовий до роботи.");
         } else {
-            LOGGER.warn("[CustomMusic] FFmpeg не знайдено. Конвертація файлів із папки import/ буде недоступна до встановлення FFmpeg.");
+            LOGGER.warn("[CustomMusic] FFmpeg не знайдено. Файли формату .ogg імпортуються напряму, але для MP3/WAV/FLAC потрібен FFmpeg.");
         }
 
         // 3. Завантажуємо конфігурацію settings.json
@@ -58,16 +58,14 @@ public class CustomMusicMod {
     private void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             LOGGER.info("[CustomMusic] Клієнтське налаштування завершено. Перевірка папки import/ на наявність нових треків...");
-            // Запускаємо первинну автоконвертацію у фоні при старті клієнта
-            if (ffmpegConverter.isAvailable()) {
-                ffmpegConverter.convertAllImportsAsync(msg -> LOGGER.info("[CustomMusic-Import] {}", msg))
-                        .thenAccept(count -> {
-                            if (count > 0) {
-                                LOGGER.info("[CustomMusic] Автоконвертація завершена. Оновлюємо список треків...");
-                                refreshTracks();
-                            }
-                        });
-            }
+            // Запускаємо первинний автоімпорт у фоні при старті клієнта (OGG імпортуються навіть без FFmpeg)
+            ffmpegConverter.convertAllImportsAsync(msg -> LOGGER.info("[CustomMusic-Import] {}", msg))
+                    .thenAccept(count -> {
+                        if (count > 0) {
+                            LOGGER.info("[CustomMusic] Автоімпорт завершено ({} треків). Оновлюємо список треків...", count);
+                            refreshTracks();
+                        }
+                    });
         });
     }
 
