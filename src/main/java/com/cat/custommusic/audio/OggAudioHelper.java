@@ -179,6 +179,7 @@ public class OggAudioHelper {
         KNOWN_VANILLA_DURATIONS.put("deeper", 303);
         KNOWN_VANILLA_DURATIONS.put("eld_bomb", 334);
         KNOWN_VANILLA_DURATIONS.put("featherfall", 344);
+        KNOWN_VANILLA_DURATIONS.put("endless", 402);
         KNOWN_VANILLA_DURATIONS.put("komorebi", 287);
         KNOWN_VANILLA_DURATIONS.put("pokopoko", 314);
         KNOWN_VANILLA_DURATIONS.put("yakusoku", 271);
@@ -247,10 +248,11 @@ public class OggAudioHelper {
         VANILLA_TRACK_NAMES.put("relic", "Aaron Cherof - Relic");
         VANILLA_TRACK_NAMES.put("creator", "Lena Raine - Creator");
         VANILLA_TRACK_NAMES.put("creator_music_box", "Lena Raine - Creator (Music Box)");
-        VANILLA_TRACK_NAMES.put("precipice", "Lena Raine - Precipice");
+        VANILLA_TRACK_NAMES.put("precipice", "Aaron Cherof - Precipice");
         VANILLA_TRACK_NAMES.put("deeper", "Lena Raine - Deeper");
         VANILLA_TRACK_NAMES.put("eld_bomb", "Lena Raine - Eld Bomb");
-        VANILLA_TRACK_NAMES.put("featherfall", "Lena Raine - Featherfall");
+        VANILLA_TRACK_NAMES.put("featherfall", "Aaron Cherof - Featherfall");
+        VANILLA_TRACK_NAMES.put("endless", "Lena Raine - Endless");
         VANILLA_TRACK_NAMES.put("komorebi", "Kumi Tanioka - Komorebi");
         VANILLA_TRACK_NAMES.put("pokopoko", "Kumi Tanioka - Poko Poko");
         VANILLA_TRACK_NAMES.put("yakusoku", "Kumi Tanioka - Yakusoku");

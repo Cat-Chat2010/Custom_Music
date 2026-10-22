@@ -10,6 +10,7 @@ out/
 .settings/
 .project
 .classpath
+.eclipse/
 
 # Minecraft run directory
 run/

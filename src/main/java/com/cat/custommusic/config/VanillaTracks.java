@@ -46,7 +46,7 @@ public class VanillaTracks {
         def("v_the_end", "C418 - The End", "minecraft:music/game/end/the_end", 600);
         def("v_boss", "C418 - Boss (Dragon)", "minecraft:music/game/end/boss", 185);
         def("v_credits", "C418 - Alpha (Credits)", "minecraft:music/game/end/alpha", 603);
-        def("v_endless", "C418 - Endless", "minecraft:music/game/endless", 363);
+        def("v_endless", "Lena Raine - Endless", "minecraft:music/game/endless", 402);
 
         // Nether (знаходяться у відповідних біомах nether)
         def("v_chrysopoeia", "Lena Raine - Chrysopoeia", "minecraft:music/game/nether/crimson_forest/chrysopoeia", 303);
@@ -74,7 +74,7 @@ public class VanillaTracks {
         def("v_floating_dream", "Kumi Tanioka - Floating Dream", "minecraft:music/game/floating_dream", 205);
         def("v_an_ordinary_day", "Kumi Tanioka - An Ordinary Day", "minecraft:music/game/an_ordinary_day", 331);
         def("v_deeper", "Lena Raine - Deeper", "minecraft:music/game/deeper", 303);
-        def("v_featherfall", "Lena Raine - Featherfall", "minecraft:music/game/featherfall", 344);
+        def("v_featherfall", "Aaron Cherof - Featherfall", "minecraft:music/game/featherfall", 344);
         def("v_komorebi", "Kumi Tanioka - Komorebi", "minecraft:music/game/komorebi", 287);
         def("v_pokopoko", "Kumi Tanioka - Poko Poko", "minecraft:music/game/pokopoko", 314);
         def("v_yakusoku", "Kumi Tanioka - Yakusoku", "minecraft:music/game/yakusoku", 271);
@@ -94,7 +94,7 @@ public class VanillaTracks {
         def("v_otherside", "Lena Raine - Otherside", "minecraft:records/otherside", 195);
         def("v_creator", "Lena Raine - Creator", "minecraft:records/creator", 177);
         def("v_creator_music_box", "Lena Raine - Creator (Music Box)", "minecraft:records/creator_music_box", 74);
-        def("v_precipice", "Lena Raine - Precipice", "minecraft:records/precipice", 299);
+        def("v_precipice", "Aaron Cherof - Precipice", "minecraft:records/precipice", 299);
         def("v_relic", "Aaron Cherof - Relic", "minecraft:records/relic", 218);
         def("v_cat", "C418 - Cat", "minecraft:records/cat", 185);
         def("v_chirp", "C418 - Chirp", "minecraft:records/chirp", 185);

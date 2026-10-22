@@ -240,9 +240,9 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
                 nameComponent = Component.literal(track.getDisplayName()).withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.STRIKETHROUGH);
             }
 
-            // 5. Тривалість пісні праворуч (біля кнопки видалення або правого краю)
+            // 5. Тривалість пісні праворуч (вирівнювання по правій межі однаково для всіх треків)
             int durWidth = font.width(this.durationText);
-            int durX = deleteButton != null ? (left + entryWidth - 26 - durWidth) : (left + entryWidth - 6 - durWidth);
+            int durX = left + entryWidth - 26 - durWidth;
             graphics.drawString(font, this.durationText, durX, top + 7, 0xFFAAAAAA, false);
 
             Component title = Component.empty().append(badgeComponent).append(nameComponent);

@@ -5,7 +5,7 @@
 ---
 
 ## 1. Загальна інформація про проєкт
-- **Назва мода:** `Custom_Music` (ім'я архіву: `custom_music-0.0.X-NeoForge.jar`)
+- **Назва мода:** `Custom_Music` (ім'я архіву: `custom_music-X.Y.Z-NeoForge.jar`)
 - **Mod ID:** `custommusic`
 - **Платформа:** Minecraft Java Edition `1.21.1`
 - **Завантажувач:** `NeoForge 21.1.65` (Java 21)
@@ -93,3 +93,4 @@
    - Повна підтримка всіх 79 офіційних звукових файлів музики Minecraft 1.21.1 з фіксованими реальними шляхами з `17.json`.
    - Точна тривалість для кожного ванільного треку та відтворення без випадкового вибору.
    - Автоматичне очищення застарілих або неіснуючих ключів (наприклад `v_hal1`, `v_chris`) та міграція застарілих назв (`v_echo_in_the_canyon` -> `v_echo_in_the_wind`) у `MusicConfig.syncWithDisk`.
+   - Точне авторство треків: `Aaron Cherof - Precipice`, `Aaron Cherof - Featherfall`, `Lena Raine - Endless`.
