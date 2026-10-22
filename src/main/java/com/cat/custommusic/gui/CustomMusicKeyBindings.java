@@ -8,7 +8,7 @@ import net.neoforged.neoforge.client.settings.KeyModifier;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Реєстрація гарячої клавіші для відкриття плеєра (за замовчуванням Ctrl + P / Ctrl + Shift + P).
+ * Реєстрація гарячої клавіші для відкриття плеєра (за замовчуванням Ctrl + P, без Shift).
  * Клавішу можна вільно перепризначити в стандартних налаштуваннях керування Minecraft.
  */
 public class CustomMusicKeyBindings {
