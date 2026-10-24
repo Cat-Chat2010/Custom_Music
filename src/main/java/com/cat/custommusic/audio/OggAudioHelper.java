@@ -21,25 +21,45 @@ public class OggAudioHelper {
     private static final Logger LOGGER = LoggerFactory.getLogger(OggAudioHelper.class);
     private static final Map<String, Integer> DURATION_CACHE = new ConcurrentHashMap<>();
 
-    public static int getDurationInSeconds(Path oggPath) {
-        if (oggPath == null || !Files.isRegularFile(oggPath)) {
+    public static int getDurationInSeconds(Path audioPath) {
+        if (audioPath == null || !Files.isRegularFile(audioPath)) {
             return 180;
         }
 
-        String cacheKey = oggPath.toAbsolutePath().normalize().toString();
+        String cacheKey = audioPath.toAbsolutePath().normalize().toString();
         Integer cached = DURATION_CACHE.get(cacheKey);
         if (cached != null && cached > 0) {
             return cached;
         }
 
-        int calculatedSec = parseOggDuration(oggPath);
+        String fileName = audioPath.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        int calculatedSec = fileName.endsWith(".mp3") ? parseMp3Duration(audioPath) : parseOggDuration(audioPath);
         if (calculatedSec > 0) {
             DURATION_CACHE.put(cacheKey, calculatedSec);
             LOGGER.info("[CustomMusic] Визначено тривалість {}: {} сек ({}хв {}с)",
-                    oggPath.getFileName(), calculatedSec, calculatedSec / 60, calculatedSec % 60);
+                    audioPath.getFileName(), calculatedSec, calculatedSec / 60, calculatedSec % 60);
             return calculatedSec;
         }
 
+        return 180;
+    }
+
+    private static int parseMp3Duration(Path path) {
+        try (java.io.InputStream is = Files.newInputStream(path);
+             java.io.BufferedInputStream bis = new java.io.BufferedInputStream(is)) {
+            long fileLength = Files.size(path);
+            javazoom.jl.decoder.Bitstream bitstream = new javazoom.jl.decoder.Bitstream(bis);
+            javazoom.jl.decoder.Header header = bitstream.readFrame();
+            if (header != null) {
+                float ms = header.total_ms((int) fileLength);
+                bitstream.close();
+                if (ms > 0) {
+                    return Math.round(ms / 1000.0f);
+                }
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("[CustomMusic] Не вдалося розпарсити MP3 тривалість: " + path.getFileName(), t);
+        }
         return 180;
     }
 
@@ -351,13 +371,17 @@ public class OggAudioHelper {
     public static int getTrackDurationSeconds(com.cat.custommusic.config.TrackEntry track) {
         if (track == null) return 180;
         if (track.isCustom()) {
-            java.nio.file.Path tracksDir = com.cat.custommusic.CustomMusicMod.getInstance().getDirectoryManager().getTracksDir();
+            java.nio.file.Path rootDir = com.cat.custommusic.CustomMusicMod.getInstance().getDirectoryManager().getRootDir();
             String fn = track.getFileName() != null ? track.getFileName() : "";
-            java.nio.file.Path oggPath = tracksDir.resolve(fn);
-            if (!java.nio.file.Files.exists(oggPath) && !fn.toLowerCase(java.util.Locale.ROOT).endsWith(".ogg")) {
-                oggPath = tracksDir.resolve(fn + ".ogg");
+            java.nio.file.Path audioPath = rootDir.resolve(fn);
+            if (!java.nio.file.Files.exists(audioPath)) {
+                if (java.nio.file.Files.exists(rootDir.resolve(fn + ".mp3"))) {
+                    audioPath = rootDir.resolve(fn + ".mp3");
+                } else if (java.nio.file.Files.exists(rootDir.resolve(fn + ".ogg"))) {
+                    audioPath = rootDir.resolve(fn + ".ogg");
+                }
             }
-            return getDurationInSeconds(oggPath);
+            return getDurationInSeconds(audioPath);
         } else {
             com.cat.custommusic.config.VanillaTracks.VanillaTrackInfo info = com.cat.custommusic.config.VanillaTracks.findByKey(track.getId());
             if (info != null) {

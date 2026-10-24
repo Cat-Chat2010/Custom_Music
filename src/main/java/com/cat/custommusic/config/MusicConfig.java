@@ -81,7 +81,7 @@ public class MusicConfig {
     /**
      * Синхронізує список треків у конфігурації з файлами на диску та ванільними треками.
      */
-    public synchronized void syncWithDisk(List<Path> diskOggFiles, List<TrackEntry> defaultVanillaTracks) {
+    public synchronized void syncWithDisk(List<Path> diskAudioFiles, List<TrackEntry> defaultVanillaTracks) {
         Map<String, TrackEntry> existingById = new LinkedHashMap<>();
         for (TrackEntry entry : tracks) {
             existingById.put(entry.getId(), entry);
@@ -91,14 +91,14 @@ public class MusicConfig {
         Set<String> updatedIds = new HashSet<>();
 
         // 1. Спочатку зберігаємо вже існуючі треки, якщо вони ще існують на диску або є валідними ванільними треками
-        Set<String> presentOggNames = new HashSet<>();
-        for (Path p : diskOggFiles) {
-            presentOggNames.add(p.getFileName().toString());
+        Set<String> presentAudioNames = new HashSet<>();
+        for (Path p : diskAudioFiles) {
+            presentAudioNames.add(p.getFileName().toString());
         }
 
         for (TrackEntry existing : tracks) {
             if (existing.isCustom()) {
-                if (presentOggNames.contains(existing.getFileName())) {
+                if (presentAudioNames.contains(existing.getFileName())) {
                     updatedTracks.add(existing);
                     updatedIds.add(existing.getId());
                 }
@@ -118,11 +118,12 @@ public class MusicConfig {
         }
 
         // 2. Додаємо нові кастомні файли, яких ще не було в конфігу
-        for (Path p : diskOggFiles) {
+        for (Path p : diskAudioFiles) {
             String fileName = p.getFileName().toString();
             String id = "custommusic:" + com.cat.custommusic.resource.DynamicMusicPackResources.toSoundKey(fileName);
             if (!updatedIds.contains(id)) {
-                String displayName = fileName.replace(".ogg", "").replace('_', ' ');
+                String baseName = fileName.replaceAll("(?i)\\.(ogg|mp3)$", "");
+                String displayName = baseName.replace('_', ' ');
                 TrackEntry newEntry = new TrackEntry(id, displayName, true, true, fileName);
                 updatedTracks.add(newEntry);
                 updatedIds.add(id);

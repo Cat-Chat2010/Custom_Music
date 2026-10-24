@@ -39,13 +39,25 @@ neoForge {
     }
 }
 
+configurations {
+    shade
+    implementation.extendsFrom shade
+}
+
 repositories {
     mavenLocal()
     mavenCentral()
 }
 
 dependencies {
-    // NeoForge handles Minecraft and standard libraries like Gson
+    shade 'javazoom:jlayer:1.0.1'
+}
+
+tasks.named('jar', Jar).configure {
+    from {
+        configurations.shade.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.withType(JavaCompile).configureEach {

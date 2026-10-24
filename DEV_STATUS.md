@@ -37,22 +37,19 @@
 ### 2. Файлова система та директорії (`com.cat.custommusic.audio`)
 - [x] Клас `MusicDirectoryManager`:
   - Базова папка: `FMLPaths.GAMEDIR.get().resolve("custom_music")`.
-  - Підпапки: `import/`, `tracks/`, `ffmpeg/`.
+  - Усі треки (`.mp3` та `.ogg`) зберігаються безпосередньо у `custom_music/`.
+  - Автоматична міграція старих підпапок `tracks/`, `import/` та `ffmpeg/` в корінь `custom_music/`.
   - Автоматичне створення структури папок при запуску клієнта гри.
-  - Сканування файлів імпорту з валідацією аудіорозширень (`mp3`, `wav`, `flac`, `m4a`, `aac`, `opus`, `ogg`).
-  - Сканування готових `.ogg` треків.
+  - Сканування готових `.mp3` та `.ogg` треків.
   - Метод безпечного видалення треку з диска (`deleteTrackFile`).
 
-### 3. Автоконвертер аудіо через FFmpeg (`com.cat.custommusic.audio`)
-- [x] Клас `FfmpegConverter`:
-  - Двоетапний пошук бінарника FFmpeg:
-    1. Локально у папці `custom_music/ffmpeg/ffmpeg.exe` (Windows) або `ffmpeg` (Linux/Mac).
-    2. У системному `PATH`.
-  - Перевірка валідності через запуск `ffmpeg -version`.
-  - Конвертація файлів у стандарт Ogg Vorbis:
-    `ffmpeg -y -i <input> -c:a libvorbis -ar 44100 -ac 2 <output.ogg>`.
-  - Безпечне видалення вхідного файлу з `import/` після успішної обробки.
-  - Асинхронний метод `convertAllImportsAsync(...)` у фоновому потоці (`CompletableFuture`), що запобігає підвисанню інтерфейсу гри.
+### 3. Нативний аудіо-рушій без FFmpeg (`com.cat.custommusic.audio` & `mixin`)
+- [x] Вбудована бібліотека pure-Java MP3 декодера JLayer (`javazoom:jlayer:1.0.1`), що шейдиться безпосередньо в JAR мода.
+- [x] Клас `Mp3AudioStream` (реалізує ванільний `AudioStream` Minecraft):
+  - Пофреймове декодування MP3 у 16-бітні Signed PCM буфери для OpenAL.
+- [x] Клас `SoundBufferLibraryMixin`:
+  - Перехоплення `SoundBufferLibrary.getStream(...)` для забезпечення OpenAL потоком `Mp3AudioStream` при відтворенні MP3 треків.
+- [x] Повна відмова від FFmpeg — жодних сторонніх бінарників чи конвертації на диску не потрібно.
 
 ### 4. Конфігурація та серіалізація JSON (`com.cat.custommusic.config`)
 - [x] Клас `MusicConfig`:
@@ -114,8 +111,9 @@ Minecraft-music/
 │   │   ├── CustomMusicMod.java              <-- Головний клас мода NeoForge
 │   │   ├── audio/
 │   │   │   ├── CustomMusicPlayer.java       <-- Логіка черги, таймінгів та відтворення
-│   │   │   ├── FfmpegConverter.java         <-- Обробка аудіо через FFmpeg
-│   │   │   └── MusicDirectoryManager.java   <-- Робота з папками custom_music/
+│   │   │   ├── Mp3AudioStream.java          <-- Pure-Java OpenAL PCM стрімінг для MP3
+│   │   │   ├── MusicDirectoryManager.java   <-- Робота з папкою custom_music/
+│   │   │   └── OggAudioHelper.java          <-- Обчислення тривалості OGG та MP3
 │   │   ├── config/
 │   │   │   ├── MusicConfig.java             <-- settings.json & синхронізація
 │   │   │   ├── PlaybackMode.java            <-- Режими RANDOM / SEQUENTIAL
@@ -123,11 +121,15 @@ Minecraft-music/
 │   │   │   └── VanillaTracks.java           <-- Список ванільних мелодій гри
 │   │   ├── gui/
 │   │   │   ├── CustomMusicClientEvents.java <-- Додавання кнопки у SoundOptionsScreen
+│   │   │   ├── CustomMusicKeyBindings.java  <-- Гарячі клавіші (Ctrl+P, Ctrl+O)
 │   │   │   ├── CustomMusicScreen.java       <-- Головний екран налаштувань мода
 │   │   │   ├── DelaySlider.java             <-- Віджет повзунка затримок
-│   │   │   └── TrackListWidget.java         <-- Прокручуваний список треків
+│   │   │   ├── NowPlayingHud.java           <-- Міні-плеєр HUD (постійний та спливаючий)
+│   │   │   └── TrackListWidget.java         <-- Прокручуваний список треків з Drag&Drop
 │   │   ├── mixin/
-│   │   │   └── MusicManagerMixin.java       <-- Перехоплення ванільного MusicManager
+│   │   │   ├── MusicManagerMixin.java       <-- Перехоплення ванільного MusicManager
+│   │   │   ├── SoundBufferLibraryMixin.java <-- Нативний стрімінг MP3 через OpenAL
+│   │   │   └── SoundManagerMixin.java       <-- Безперервне звучання в меню
 │   │   └── resource/
 │   │       ├── DynamicMusicPackFinder.java  <-- Реєстратор ресурс-паку в NeoForge
 │   │       └── DynamicMusicPackResources.java <-- Віртуальний sounds.json і стрімінг

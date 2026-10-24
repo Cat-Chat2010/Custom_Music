@@ -46,7 +46,7 @@ public class DynamicMusicPackResources implements PackResources {
      * для будь-якого імені файлу (незалежно від пробілів, кирилиці чи спецсимволів).
      */
     public static String toSoundKey(String fileName) {
-        String base = fileName.replace(".ogg", "").toLowerCase(Locale.ROOT);
+        String base = fileName.replaceAll("(?i)\\.(ogg|mp3)$", "").toLowerCase(Locale.ROOT);
         StringBuilder sb = new StringBuilder("s_");
         for (char c : base.toCharArray()) {
             if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.') {
@@ -105,7 +105,7 @@ public class DynamicMusicPackResources implements PackResources {
             }
 
             // Прямий fallback за ім'ям файлу
-            Path direct = directoryManager.getTracksDir().resolve(path.substring("sounds/".length()));
+            Path direct = directoryManager.getRootDir().resolve(path.substring("sounds/".length()));
             if (Files.exists(direct)) {
                 return () -> Files.newInputStream(direct);
             }

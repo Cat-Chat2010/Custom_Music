@@ -10,7 +10,6 @@
 
   "gui.custommusic.title": "Настройки фоновой музыки",
   "gui.custommusic.add_music": "📁 Добавить музыку",
-  "gui.custommusic.reload_tooltip": "Обработать и импортировать треки из папки import/",
   "gui.custommusic.next_track": "Следующий трек ⏭",
 
   "gui.custommusic.min_delay": "Мин. задержка: %s с",
@@ -25,18 +24,10 @@
   "gui.custommusic.badge.disc": "[Disc]",
 
   "gui.custommusic.status.choose_files": "Выберите музыкальные файлы в окне...",
-  "gui.custommusic.status.copied_converting": "Скопировано %s треков! Конвертация...",
-  "gui.custommusic.status.import_empty": "Папка import/ пуста.",
-  "gui.custommusic.status.ffmpeg_required": "Для MP3/WAV нужен FFmpeg! Или используйте .ogg треки.",
-  "gui.custommusic.status.processing_import": "Обработка треков из папки import/...",
-  "gui.custommusic.status.imported_count": "Импортировано %s треков! Обновляем ресурсы...",
-  "gui.custommusic.status.no_new_tracks": "Новые треки не импортированы.",
-  "gui.custommusic.status.importing_ogg": "Импорт OGG (%s/%s): %s",
-  "gui.custommusic.status.converting": "Конвертация (%s/%s): %s",
-  "gui.custommusic.status.finished_skipped": "Импортировано: %s. Пропущено: %s (нужен FFmpeg для MP3/WAV)",
-  "gui.custommusic.status.finished_all": "Завершено! Импортировано треков: %s из %s",
+  "gui.custommusic.status.copied_ready": "Добавлено %s трек(ов)! Обновляем список...",
+  "gui.custommusic.status.no_new_tracks": "Новых треков не добавлено.",
 
-  "gui.custommusic.dialog.title": "Выберите музыку для Minecraft",
+  "gui.custommusic.dialog.title": "Выберите музыку для Minecraft (.mp3 или .ogg)",
   "gui.custommusic.dialog.filter_audio": "Аудио файлы",
   "gui.custommusic.dialog.filter_all": "Все файлы"
 }

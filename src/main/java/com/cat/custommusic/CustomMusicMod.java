@@ -1,6 +1,5 @@
 package com.cat.custommusic;
 
-import com.cat.custommusic.audio.FfmpegConverter;
 import com.cat.custommusic.audio.MusicDirectoryManager;
 import com.cat.custommusic.config.MusicConfig;
 import com.cat.custommusic.config.VanillaTracks;
@@ -23,7 +22,6 @@ public class CustomMusicMod {
     private static CustomMusicMod instance;
 
     private final MusicDirectoryManager directoryManager;
-    private final FfmpegConverter ffmpegConverter;
     private MusicConfig config;
 
     public CustomMusicMod(IEventBus modEventBus) {
@@ -35,20 +33,11 @@ public class CustomMusicMod {
         this.directoryManager = new MusicDirectoryManager();
         this.directoryManager.initDirectories();
 
-        // 2. Ініціалізуємо FFmpeg конвертер
-        this.ffmpegConverter = new FfmpegConverter(this.directoryManager);
-        boolean ffmpegFound = this.ffmpegConverter.isAvailable();
-        if (ffmpegFound) {
-            LOGGER.info("[CustomMusic] FFmpeg готовий до роботи.");
-        } else {
-            LOGGER.warn("[CustomMusic] FFmpeg не знайдено. Файли формату .ogg імпортуються напряму, але для MP3/WAV/FLAC потрібен FFmpeg.");
-        }
-
-        // 3. Завантажуємо конфігурацію settings.json
+        // 2. Завантажуємо конфігурацію settings.json
         this.config = MusicConfig.load(this.directoryManager.getSettingsFile());
         this.config.syncWithDisk(this.directoryManager.getTrackFiles(), VanillaTracks.getDefaultVanillaTracks());
 
-        // 4. Підписуємось на події життєвого циклу
+        // 3. Підписуємось на події життєвого циклу
         modEventBus.addListener(this::onClientSetup);
         modEventBus.addListener(com.cat.custommusic.gui.CustomMusicKeyBindings::onRegisterKeyMappings);
         modEventBus.addListener((net.neoforged.neoforge.event.AddPackFindersEvent event) ->
@@ -57,15 +46,7 @@ public class CustomMusicMod {
 
     private void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
-            LOGGER.info("[CustomMusic] Клієнтське налаштування завершено. Перевірка папки import/ на наявність нових треків...");
-            // Запускаємо первинний автоімпорт у фоні при старті клієнта (OGG імпортуються навіть без FFmpeg)
-            ffmpegConverter.convertAllImportsAsync(msg -> LOGGER.info("[CustomMusic-Import] {}", msg.getString()))
-                    .thenAccept(count -> {
-                        if (count > 0) {
-                            LOGGER.info("[CustomMusic] Автоімпорт завершено ({} треків). Оновлюємо список треків...", count);
-                            refreshTracks();
-                        }
-                    });
+            LOGGER.info("[CustomMusic] Клієнтське налаштування завершено. Custom Music готовий до роботи.");
         });
     }
 
@@ -84,10 +65,6 @@ public class CustomMusicMod {
 
     public MusicDirectoryManager getDirectoryManager() {
         return directoryManager;
-    }
-
-    public FfmpegConverter getFfmpegConverter() {
-        return ffmpegConverter;
     }
 
     public MusicConfig getConfig() {

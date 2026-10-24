@@ -38,10 +38,9 @@ This project was developed by **Cat-Chat2010** with the assistance of **Artifici
   * Music discs (`Pigstep`, `Cat`, `Otherside`, `Creator`, `Precipice`, `Relic`, etc.) play their exact song without random selection.
   * Dedicated color badges: `[Custom]` (Cyan), `[Vanilla]` (Gray), and `[Disc]` (Gold).
   * Verified composer attribution: Aaron Cherof (*Precipice*, *Featherfall*), Lena Raine (*Endless*, *Creator*), etc.
-* ⚡ **Zero-Setup OGG Playback:**
-  * Direct `.ogg` file import without requiring FFmpeg.
-* 🎛️ **Optional FFmpeg Audio Converter:**
-  * Automatic background conversion for `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` when FFmpeg is available.
+* ⚡ **Native MP3 & OGG Playback (No FFmpeg Needed):**
+  * Direct playback of `.mp3` and `.ogg` files via embedded pure-Java audio decoding into Minecraft's OpenAL engine.
+  * No external software, commands, or codecs required — works 100% out of the box!
 * 🌐 **Full Multi-Language Support:**
   * Native in-game localization for English (`en_us.json`), Ukrainian (`uk_ua.json`), and Russian (`ru_ru.json`).
   * Automatic English fallback for all other languages selected in Minecraft.
@@ -56,17 +55,14 @@ This project was developed by **Cat-Chat2010** with the assistance of **Artifici
 ```text
 .minecraft/
 └── custom_music/
-    ├── import/        <-- Drop audio files here (.mp3, .wav, .flac, etc.)
-    ├── tracks/        <-- Ready-to-play .ogg tracks
-    ├── ffmpeg/        <-- Optional: place ffmpeg.exe here if not in system PATH
-    └── custommusic.json <-- Configuration and playlist order
+    ├── your_song_1.mp3   <-- Drop your .mp3 tracks here
+    ├── your_song_2.ogg   <-- Drop your .ogg tracks here
+    └── custommusic.json  <-- Configuration and playlist order
 ```
 
-### 🛠️ FFmpeg Setup (Optional)
-* **`.ogg` files and Minecraft Vanilla tracks:** Work out of the box with zero setup!
-* **`.mp3`, `.wav`, `.flac`, `.m4a`:**
-  * **Option 1:** Install to system PATH (e.g. run `winget install Gyan.FFmpeg` in Windows Terminal).
-  * **Option 2:** Place `ffmpeg.exe` into `.minecraft/custom_music/ffmpeg/`.
+### 🎵 Adding Music
+* **In-Game:** Press **`Ctrl + P`** and click **"📁 Add Music"** to pick files using the native file dialog.
+* **Manually:** Simply copy any `.mp3` or `.ogg` audio files into `.minecraft/custom_music/`.
 
 ### 🔨 Building from Source
 * Requirements: **JDK 21**
@@ -109,10 +105,9 @@ Distributed under the **MIT License**.
   * Музичні платівки (`Pigstep`, `Cat`, `Otherside`, `Creator`, `Precipice`, `Relic` тощо) грають свою точну мелодію без випадкового вибору.
   * Кольорові бейджі: `[Custom]` (блакитний), `[Vanilla]` (сірий) та `[Disc]` (золотий для платівок).
   * Точне авторство треків: Aaron Cherof (*Precipice*, *Featherfall*), Lena Raine (*Endless*, *Creator*) та інші.
-* ⚡ **Робота OGG без налаштувань:**
-  * Прямий імпорт `.ogg` файлів без потреби у FFmpeg.
-* 🎛️ **Опціональний конвертер FFmpeg:**
-  * Автоматична фонова конвертація `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` за наявності FFmpeg.
+* ⚡ **Нативне відтворення MP3 та OGG (без FFmpeg):**
+  * Пряме програвання файлів `.mp3` та `.ogg` завдяки вбудованому Java-декодеру в OpenAL рушій Minecraft.
+  * Жодних сторонніх програм, кодеків чи консольних утиліт — працює на 100% з коробки!
 * 🌐 **Повноцінна багатомовна локалізація:**
   * Повна підтримка англійської (`en_us.json`), української (`uk_ua.json`) та російської (`ru_ru.json`) мов інтерфейсу.
   * Автоматичне використання англійської мови як резервної для будь-яких інших мов гри.
@@ -127,17 +122,14 @@ Distributed under the **MIT License**.
 ```text
 .minecraft/
 └── custom_music/
-    ├── import/        <-- Сюди можна скидати аудіо (.mp3, .wav, .flac тощо)
-    ├── tracks/        <-- Готові до відтворення .ogg треки
-    ├── ffmpeg/        <-- Опціонально: сюди можна покласти ffmpeg.exe
-    └── custommusic.json <-- Файл конфігурації та збереженого порядку
+    ├── vasha_pisnya_1.mp3 <-- Сюди додаються ваші .mp3 треки
+    ├── vasha_pisnya_2.ogg <-- Сюди додаються ваші .ogg треки
+    └── custommusic.json   <-- Файл конфігурації та збереженого порядку
 ```
 
-### 🛠️ Налаштування FFmpeg (Опціонально)
-* **`.ogg` файли та ванільна музика:** Працюють одразу без додаткових дій!
-* **`.mp3`, `.wav`, `.flac`, `.m4a`:**
-  * **Варіант 1:** Встановити у системний PATH (команда `winget install Gyan.FFmpeg` у терміналі).
-  * **Варіант 2:** Покласти `ffmpeg.exe` у папку `.minecraft/custom_music/ffmpeg/`.
+### 🎵 Як додавати музику
+* **Прямо у грі:** Натисніть **`Ctrl + P`** та оберіть **«📁 Додати музику»** для вибору файлів через системний провідник.
+* **Вручну:** Просто скопіюйте будь-які аудіофайли `.mp3` або `.ogg` у папку `.minecraft/custom_music/`.
 
 ### 🔨 Збірка з вихідного коду
 * Вимоги: **JDK 21**

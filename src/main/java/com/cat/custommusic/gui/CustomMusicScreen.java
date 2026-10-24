@@ -2,14 +2,12 @@ package com.cat.custommusic.gui;
 
 import com.cat.custommusic.CustomMusicMod;
 import com.cat.custommusic.audio.CustomMusicPlayer;
-import com.cat.custommusic.audio.FfmpegConverter;
 import com.cat.custommusic.config.MusicConfig;
 import com.cat.custommusic.config.PlaybackMode;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.CommonComponents;
@@ -40,7 +38,6 @@ public class CustomMusicScreen extends Screen {
     private TrackListWidget trackList;
     private Button modeButton;
     private Button addMusicButton;
-    private Button importButton;
     private DelaySlider minDelaySlider;
     private DelaySlider maxDelaySlider;
     private Component statusComponent = null;
@@ -78,17 +75,8 @@ public class CustomMusicScreen extends Screen {
         this.addMusicButton = Button.builder(
                 Component.translatable("gui.custommusic.add_music"),
                 b -> openAddMusicAction()
-        ).bounds(centerRight, topY, 96, 20).build();
+        ).bounds(centerRight, topY, 150, 20).build();
         this.addRenderableWidget(addMusicButton);
-
-        // Кнопка конвертації та імпорту
-        this.importButton = Button.builder(
-                Component.literal("🔄"),
-                b -> startImportProcess()
-        ).bounds(centerRight + 100, topY, 50, 20)
-         .tooltip(Tooltip.create(Component.translatable("gui.custommusic.reload_tooltip")))
-         .build();
-        this.addRenderableWidget(importButton);
 
         // 2. Слайдери затримок між треками (0 - 600 секунд)
         int slidersY = topY + 24;
@@ -167,7 +155,7 @@ public class CustomMusicScreen extends Screen {
                             "$d = New-Object System.Windows.Forms.OpenFileDialog; " +
                             "$d.Multiselect = $true; " +
                             "$d.Title = '" + escapedTitle + "'; " +
-                            "$d.Filter = '" + escapedAudio + " (*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac)|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" + escapedAll + " (*.*)|*.*'; " +
+                            "$d.Filter = '" + escapedAudio + " (*.mp3;*.ogg)|*.mp3;*.ogg|" + escapedAll + " (*.*)|*.*'; " +
                             "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.FileNames }";
 
                     ProcessBuilder pb = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", psCommand);
@@ -218,24 +206,34 @@ public class CustomMusicScreen extends Screen {
 
             // 3. Обробка обраних файлів
             if (!selectedFiles.isEmpty()) {
-                Path importDir = CustomMusicMod.getInstance().getDirectoryManager().getImportDir();
+                Path rootDir = CustomMusicMod.getInstance().getDirectoryManager().getRootDir();
                 int copied = 0;
                 for (File srcFile : selectedFiles) {
-                    Path dest = importDir.resolve(srcFile.getName());
-                    try {
-                        // БЕЗПЕЧНЕ КОПІЮВАННЯ: оригінальні файли залишаються на ПК користувача в тому самому місці й форматі!
-                        Files.copy(srcFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
-                        copied++;
-                    } catch (Exception ex) {
-                        LOGGER.error("[CustomMusic] Не вдалося скопіювати файл: " + srcFile.getName(), ex);
+                    String lowerName = srcFile.getName().toLowerCase(Locale.ROOT);
+                    if (lowerName.endsWith(".mp3") || lowerName.endsWith(".ogg")) {
+                        Path dest = rootDir.resolve(srcFile.getName());
+                        try {
+                            // БЕЗПЕЧНЕ КОПІЮВАННЯ: оригінальні файли залишаються на ПК користувача в тому самому місці й форматі!
+                            Files.copy(srcFile.toPath(), dest, StandardCopyOption.REPLACE_EXISTING);
+                            copied++;
+                        } catch (Exception ex) {
+                            LOGGER.error("[CustomMusic] Не вдалося скопіювати файл: " + srcFile.getName(), ex);
+                        }
                     }
                 }
 
                 final int count = copied;
                 if (this.minecraft != null) {
                     this.minecraft.execute(() -> {
-                        this.statusComponent = Component.translatable("gui.custommusic.status.copied_converting", count).withStyle(ChatFormatting.GREEN);
-                        startImportProcess();
+                        if (count > 0) {
+                            this.statusComponent = Component.translatable("gui.custommusic.status.copied_ready", count).withStyle(ChatFormatting.GREEN);
+                            CustomMusicMod.getInstance().refreshTracks();
+                            refreshList();
+                            // Перезавантажуємо ресурси, щоб Minecraft зареєстрував нові треки
+                            this.minecraft.reloadResourcePacks();
+                        } else {
+                            this.statusComponent = Component.translatable("gui.custommusic.status.no_new_tracks").withStyle(ChatFormatting.YELLOW);
+                        }
                     });
                 }
             } else {
@@ -244,44 +242,6 @@ public class CustomMusicScreen extends Screen {
                 }
             }
         });
-    }
-
-    private void startImportProcess() {
-        FfmpegConverter converter = CustomMusicMod.getInstance().getFfmpegConverter();
-        List<Path> importFiles = CustomMusicMod.getInstance().getDirectoryManager().getImportFiles();
-        if (importFiles.isEmpty()) {
-            this.statusComponent = Component.translatable("gui.custommusic.status.import_empty").withStyle(ChatFormatting.YELLOW);
-            return;
-        }
-
-        boolean hasOgg = importFiles.stream().anyMatch(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
-        boolean hasNonOgg = importFiles.stream().anyMatch(p -> !p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
-
-        if (hasNonOgg && !converter.isAvailable() && !hasOgg) {
-            this.statusComponent = Component.translatable("gui.custommusic.status.ffmpeg_required").withStyle(ChatFormatting.RED);
-            return;
-        }
-
-        this.importButton.active = false;
-        this.statusComponent = Component.translatable("gui.custommusic.status.processing_import").withStyle(ChatFormatting.YELLOW);
-
-        converter.convertAllImportsAsync(msgComp -> this.statusComponent = msgComp.copy().withStyle(ChatFormatting.GRAY))
-                .thenAccept(count -> {
-                    if (this.minecraft != null) {
-                        this.minecraft.execute(() -> {
-                            this.importButton.active = true;
-                            this.statusComponent = count > 0
-                                    ? Component.translatable("gui.custommusic.status.imported_count", count).withStyle(ChatFormatting.GREEN)
-                                    : Component.translatable("gui.custommusic.status.no_new_tracks").withStyle(ChatFormatting.YELLOW);
-                            CustomMusicMod.getInstance().refreshTracks();
-                            refreshList();
-                            // Перезавантажуємо ресурси, щоб Minecraft підтягнув нові .ogg треки
-                            if (count > 0 && this.minecraft != null) {
-                                this.minecraft.reloadResourcePacks();
-                            }
-                        });
-                    }
-                });
     }
 
     public void refreshList() {

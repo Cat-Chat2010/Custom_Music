@@ -10,7 +10,6 @@
 
   "gui.custommusic.title": "Background Music Settings",
   "gui.custommusic.add_music": "📁 Add Music",
-  "gui.custommusic.reload_tooltip": "Process and import tracks from import/ folder",
   "gui.custommusic.next_track": "Next Track ⏭",
 
   "gui.custommusic.min_delay": "Min. Delay: %s s",
@@ -25,18 +24,10 @@
   "gui.custommusic.badge.disc": "[Disc]",
 
   "gui.custommusic.status.choose_files": "Select music files in the dialog window...",
-  "gui.custommusic.status.copied_converting": "Copied %s track(s)! Converting...",
-  "gui.custommusic.status.import_empty": "The import/ folder is empty.",
-  "gui.custommusic.status.ffmpeg_required": "FFmpeg is required for MP3/WAV! Or use .ogg tracks.",
-  "gui.custommusic.status.processing_import": "Processing tracks from import/ folder...",
-  "gui.custommusic.status.imported_count": "Imported %s track(s)! Reloading resources...",
-  "gui.custommusic.status.no_new_tracks": "No new tracks were imported.",
-  "gui.custommusic.status.importing_ogg": "Importing OGG (%s/%s): %s",
-  "gui.custommusic.status.converting": "Converting (%s/%s): %s",
-  "gui.custommusic.status.finished_skipped": "Imported: %s. Skipped: %s (FFmpeg required for MP3/WAV)",
-  "gui.custommusic.status.finished_all": "Finished! Imported %s of %s tracks",
+  "gui.custommusic.status.copied_ready": "Added %s track(s)! Reloading resources...",
+  "gui.custommusic.status.no_new_tracks": "No new tracks were added.",
 
-  "gui.custommusic.dialog.title": "Select music for Minecraft",
+  "gui.custommusic.dialog.title": "Select music for Minecraft (.mp3 or .ogg)",
   "gui.custommusic.dialog.filter_audio": "Audio files",
   "gui.custommusic.dialog.filter_all": "All files"
 }
