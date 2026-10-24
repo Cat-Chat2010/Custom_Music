@@ -241,5 +241,15 @@ public class NowPlayingHud {
         pose.scale(0.5f, 0.5f, 1.0f);
         graphics.drawString(font, totalStr, 0, 0, 0xFFAAAAAA, false);
         pose.popPose();
+
+        // 7. Посередині під полоскою: значок (2 полоски коли грає, трикутник коли пауза), завжди білий колір
+        boolean isPlaying = player.isPlaying() && !player.isPaused();
+        String statusIcon = isPlaying ? "⏸" : "▶";
+        int iconWidth = Math.round(font.width(statusIcon) * 0.5f);
+        pose.pushPose();
+        pose.translate(boxX + (BOX_WIDTH - iconWidth) / 2.0f, boxY + 25, 0);
+        pose.scale(0.5f, 0.5f, 1.0f);
+        graphics.drawString(font, statusIcon, 0, 0, 0xFFFFFFFF, false);
+        pose.popPose();
     }
 }

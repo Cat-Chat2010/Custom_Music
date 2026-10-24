@@ -59,6 +59,10 @@ public class TrackEntry {
         return fileName;
     }
 
+    public boolean isDisc() {
+        return !custom && com.cat.custommusic.config.VanillaTracks.isDisc(this.id);
+    }
+
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }

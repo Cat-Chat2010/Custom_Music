@@ -6,7 +6,10 @@
   "client": [
     "MusicManagerMixin",
     "SoundManagerMixin",
-    "SoundBufferLibraryMixin"
+    "SoundBufferLibraryMixin",
+    "ChannelMixin",
+    "SoundEngineAccessor",
+    "SoundManagerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

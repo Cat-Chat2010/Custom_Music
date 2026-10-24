@@ -18,4 +18,4 @@ run/
 # Scratch and archives
 scratch/
 *.zip
-
+*.log

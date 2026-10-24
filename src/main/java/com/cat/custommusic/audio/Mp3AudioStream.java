@@ -1,7 +1,6 @@
 package com.cat.custommusic.audio;
 
 import javazoom.jl.decoder.*;
-import net.minecraft.client.sounds.AudioStream;
 import org.lwjgl.BufferUtils;
 
 import javax.sound.sampled.AudioFormat;
@@ -9,26 +8,51 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.Supplier;
 
 /**
  * Аудіопотік для відтворення MP3 треків безпосередньо через OpenAL у Minecraft.
- * Використовує чистий Java декодер JLayer для декодування MP3 фреймів у 16-бітний PCM.
+ * Використовує чистий Java декодер JLayer для декодування MP3 фреймів у 16-бітний PCM
+ * та циклічний буфер історії (30 секунд) для миттєвої перемотки назад (-5с) без повторного декодування.
  */
-public class Mp3AudioStream implements AudioStream {
-    private final Bitstream bitstream;
-    private final Decoder decoder;
+public class Mp3AudioStream implements SeekableAudioStream {
+    private final Supplier<InputStream> streamSupplier;
+    private Bitstream bitstream;
+    private Decoder decoder;
     private final AudioFormat format;
+    private final int frameSize;
     private boolean eos = false;
+
+    // Циклічний буфер історії (30 секунд PCM) для миттєвої перемотки назад (-5с)
+    private final int historyCapacity;
+    private final byte[] history;
+    private long totalDecodedBytes = 0;
+    private long currentStreamBytes = 0;
 
     // Внутрішній буфер декодованих PCM байтів
     private byte[] buffer = new byte[65536];
     private int bufferPos = 0;
     private int bufferCount = 0;
 
+    public Mp3AudioStream(Path filePath) throws IOException {
+        this(() -> {
+            try {
+                return Files.newInputStream(filePath);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     public Mp3AudioStream(InputStream inputStream) throws IOException {
-        InputStream buffered = (inputStream instanceof BufferedInputStream)
-                ? inputStream
-                : new BufferedInputStream(inputStream, 32768);
+        this(() -> inputStream);
+    }
+
+    public Mp3AudioStream(Supplier<InputStream> streamSupplier) throws IOException {
+        this.streamSupplier = streamSupplier;
+        InputStream buffered = new BufferedInputStream(streamSupplier.get(), 32768);
         this.bitstream = new Bitstream(buffered);
         this.decoder = new Decoder();
 
@@ -49,6 +73,61 @@ public class Mp3AudioStream implements AudioStream {
             }
         } catch (BitstreamException | DecoderException e) {
             throw new IOException("Failed to initialize MP3 decoder", e);
+        }
+
+        int ch = this.format.getChannels();
+        int bits = this.format.getSampleSizeInBits();
+        this.frameSize = (ch > 0 && bits > 0) ? (ch * bits / 8) : 4;
+        float sampleRate = this.format.getSampleRate() > 0 ? this.format.getSampleRate() : 44100.0f;
+        int bytesPerSec = (int) (sampleRate * this.frameSize);
+        this.historyCapacity = Math.max(bytesPerSec * 30, 65536);
+        this.history = new byte[this.historyCapacity];
+    }
+
+    @Override
+    public synchronized void seekTo(float targetSeconds) throws IOException {
+        long targetBytes = (long) (format.getSampleRate() * format.getChannels() * (format.getSampleSizeInBits() / 8.0f) * targetSeconds);
+        if (frameSize > 0) {
+            targetBytes = (targetBytes / frameSize) * frameSize;
+        }
+
+        long minHistoryByte = Math.max(0, totalDecodedBytes - historyCapacity);
+
+        // Сценарій 1: Цільова позиція вже є в буфері історії (миттєвий -5с стрибок)
+        if (targetBytes >= minHistoryByte && targetBytes <= totalDecodedBytes) {
+            this.currentStreamBytes = targetBytes;
+            return;
+        }
+
+        if (this.streamSupplier == null) return;
+        try {
+            this.bitstream.close();
+        } catch (Exception ignored) {
+        }
+
+        InputStream buffered = new BufferedInputStream(this.streamSupplier.get(), 32768);
+        this.bitstream = new Bitstream(buffered);
+        this.decoder = new Decoder();
+        this.bufferPos = 0;
+        this.bufferCount = 0;
+        this.eos = false;
+        this.totalDecodedBytes = 0;
+        this.currentStreamBytes = 0;
+
+        float elapsed = 0.0f;
+        while (elapsed < targetSeconds) {
+            try {
+                Header header = this.bitstream.readFrame();
+                if (header == null) {
+                    this.eos = true;
+                    break;
+                }
+                elapsed += header.ms_per_frame() / 1000.0f;
+                this.bitstream.closeFrame();
+            } catch (Exception e) {
+                this.eos = true;
+                break;
+            }
         }
     }
 
@@ -94,8 +173,31 @@ public class Mp3AudioStream implements AudioStream {
     }
 
     @Override
-    public ByteBuffer read(int size) throws IOException {
-        // Якщо в буфері менше даних ніж запитано, додекодовуємо фрейми з MP3
+    public synchronized ByteBuffer read(int size) throws IOException {
+        // 1. Відтворюємо з буфера історії, якщо ми відмотали назад
+        if (currentStreamBytes < totalDecodedBytes) {
+            int available = (int) (totalDecodedBytes - currentStreamBytes);
+            int toRead = Math.min(size, available);
+            if (frameSize > 0) {
+                toRead = (toRead / frameSize) * frameSize;
+            }
+            if (toRead <= 0) {
+                toRead = Math.min(size, available);
+            }
+
+            ByteBuffer outBuf = BufferUtils.createByteBuffer(toRead);
+            int readPos = (int) (currentStreamBytes % historyCapacity);
+            int firstPart = Math.min(toRead, historyCapacity - readPos);
+            outBuf.put(history, readPos, firstPart);
+            if (toRead > firstPart) {
+                outBuf.put(history, 0, toRead - firstPart);
+            }
+            outBuf.flip();
+            currentStreamBytes += toRead;
+            return outBuf;
+        }
+
+        // 2. Якщо в буфері менше даних ніж запитано, додекодовуємо фрейми з MP3
         while (!eos && (bufferCount - bufferPos) < size) {
             try {
                 Header header = bitstream.readFrame();
@@ -123,6 +225,22 @@ public class Mp3AudioStream implements AudioStream {
         byteBuf.put(buffer, bufferPos, bytesToRead);
         byteBuf.flip();
 
+        // Записуємо байти в кільцевий буфер історії для миттєвої перемотки назад
+        if (bytesToRead >= historyCapacity) {
+            int skip = bytesToRead - historyCapacity;
+            System.arraycopy(buffer, bufferPos + skip, history, 0, historyCapacity);
+        } else {
+            int writePos = (int) (totalDecodedBytes % historyCapacity);
+            int firstPart = Math.min(bytesToRead, historyCapacity - writePos);
+            System.arraycopy(buffer, bufferPos, history, writePos, firstPart);
+            if (bytesToRead > firstPart) {
+                System.arraycopy(buffer, bufferPos + firstPart, history, 0, bytesToRead - firstPart);
+            }
+        }
+
+        totalDecodedBytes += bytesToRead;
+        currentStreamBytes += bytesToRead;
+
         bufferPos += bytesToRead;
         if (bufferPos == bufferCount) {
             bufferPos = 0;
@@ -133,7 +251,7 @@ public class Mp3AudioStream implements AudioStream {
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         try {
             bitstream.close();
         } catch (BitstreamException e) {

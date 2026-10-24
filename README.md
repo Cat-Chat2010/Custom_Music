@@ -17,27 +17,30 @@ A comprehensive client-side music manager and player for **Minecraft 1.21.1 (Neo
 ### 🤖 AI Development Disclosure
 This project was developed by **Cat-Chat2010** with the assistance of **Artificial Intelligence (Google Antigravity / AI Pair Programming)** for code architecture, mixins, audio streaming engine, and documentation.
 
-### ✨ What the Mod Includes
-
+* 📂 **Albums & Playlists System:**
+  * Create custom albums and playlists with custom names (defaults to `Album N` if left blank).
+  * Permanent built-in album **"All Tracks"** contains all songs and cannot be deleted.
+  * Search tracks by title in real-time (`🔍 Search...`).
+  * Flexible sorting modes: **By Name**, **By Duration**, **By Type** (`[Custom]`, `[Vanilla]`, `[Disc]`), or **Custom** (manual Drag-and-Drop order persisted in config).
+  * Shuffle songs inside the current album with `🔀 Shuffle`.
+  * Add and remove tracks to/from custom albums with simple buttons.
+* 🎛️ **Dual-Tab Interface (`Ctrl + P`):**
+  * **Albums Tab (`💿 Albums`):** Integrated interactive player with scrubber, rewind (`-5s` / `+5s`), previous/next track buttons, search, and album playlist.
+  * **Settings Tab (`⚙ Settings`):** Silence delay sliders, volume controls, file import, file deletion, and individual track volume settings.
+* 🔊 **Multi-Level Volume Control:**
+  * **Volume by Category:** Independent volume sliders (0% - 100%) for Custom Music, Vanilla Soundtrack, and Music Discs.
+  * **Individual Track Volume:** Custom volume slider for any specific track. Moving slider to 100% automatically removes it from the custom volume list.
+  * **Real-Time Audio Adjustment:** Moving sliders immediately adjusts OpenAL channel volume without lag or audio stutter.
+* 📁 **In-Game File Management:**
+  * **Native File Picker:** Click "Add Music" to pick `.mp3` or `.ogg` files via the standard Windows Explorer dialog.
+  * **Delete Music:** Dedicated searchable screen with `[✕]` buttons to remove unwanted custom audio files directly from disk.
 * 📌 **HUD Mini-Player (`Ctrl + O`):**
   * Compact on-screen overlay (96x34) in the top-right corner.
-  * Real-time timeline: elapsed time, remaining time (`-X:XX`), total track duration, and a clean progress bar.
-  * Smooth slide-in / slide-out animations when switching tracks or toggling the player.
-  * Permanent display mode (`Ctrl + O`) or automatic 7-second popup on track change.
-* ⚙️ **In-Game Settings Menu (`Ctrl + P`):**
-  * **Native File Picker:** Click "Add Music" to open the standard Windows Explorer dialog. Multi-selection supported (Ctrl / Shift).
-  * **Instant Preview:** Play and pause any track directly inside the list with `▶` / `⏸`.
-  * **Drag-and-Drop Reordering:** Easily change track sequence by dragging items in the list.
-  * **Track Toggle:** Enable or disable individual tracks with checkboxes.
-  * **Silence Delay Sliders:** Configure minimum and maximum pause duration between tracks.
-  * **Playback Modes:** Switch between Random shuffle and Sequential order.
-* 🔊 **Uninterrupted Background Playback:**
-  * Music continues playing without pausing or cutting off when opening the Pause Menu, Options, or mod screens.
-* 🎶 **All 79 Vanilla Minecraft 1.21.1 Tracks Supported:**
-  * Fixed sound paths for all official Overworld, Nether, End, Creative, and Menu tracks.
-  * Music discs (`Pigstep`, `Cat`, `Otherside`, `Creator`, `Precipice`, `Relic`, etc.) play their exact song without random selection.
-  * Dedicated color badges: `[Custom]` (Cyan), `[Vanilla]` (Gray), and `[Disc]` (Gold).
-  * Verified composer attribution: Aaron Cherof (*Precipice*, *Featherfall*), Lena Raine (*Endless*, *Creator*), etc.
+  * Real-time timeline: elapsed time, remaining time (`-X:XX`), total track duration, play/pause icon, and clean progress bar.
+  * Smooth slide-in / slide-out animations. Permanent display mode (`Ctrl + O`) or automatic 7-second popup on track change.
+* ⚡ **Hardware-Accelerated Zero-Lag Rewind & Stream Ending:**
+  * 30-second circular PCM history buffer enables instantaneous `-5s` rewind with 0 ms latency and 0% CPU overhead.
+  * Robust EOF stream handling prevents infinite empty OpenAL buffer playback.
 * ⚡ **Native MP3 & OGG Playback (No FFmpeg Needed):**
   * Direct playback of `.mp3` and `.ogg` files via embedded pure-Java audio decoding into Minecraft's OpenAL engine.
   * No external software, commands, or codecs required — works 100% out of the box!
@@ -84,20 +87,30 @@ Distributed under the **MIT License**.
 ### 🤖 Створено за допомогою ШІ (AI Disclosure)
 Цей проєкт створений автором **Cat-Chat2010** за активної участі **штучного інтелекту (Google Antigravity / AI Pair Programming)** для розробки архітектури коду, міксинів, звукового рушія та документації.
 
-### ✨ Що є в моді
-
+* 📂 **Система альбомів та плейлистів:**
+  * Створення власних альбомів і плейлистів з можливістю введення назви (якщо залишити порожнім, автоматично створюється `Альбом N`).
+  * Постійний альбом **«Усі пісні»**, який містить усі треки і не може бути видалений.
+  * Пошук треків за назвою в реальному часі (`🔍 Пошук...`).
+  * Зручні режими упорядкування: **За назвою**, **За довжиною**, **За типом** (`[Custom]`, `[Vanilla]`, `[Disc]`) або **Своє** (ручний порядок через Drag-and-Drop, який зберігається у конфігурації).
+  * Перемішування пісень в обраному альбомі кнопкою `🔀 Перемішати`.
+  * Додавання пісень до кастомного альбому та прибирання з нього за допомогою кнопок.
+* 🎛️ **Двокомпонентний інтерфейс (`Ctrl + P`):**
+  * **Вкладка «Альбоми» (`💿 Альбоми`):** Вбудований інтерактивний плеєр із таймлайном, перемоткою (`-5s` / `+5s`), кнопками зміни треків, пошуком та списком пісень альбому.
+  * **Вкладка «Налаштування» (`⚙ Налаштування`):** Слайдери затримок тиші, регулювання гучності, імпорт та видалення файлів, персональна гучність треків.
+* 🔊 **Багаторівневе регулювання гучності:**
+  * **Гучність за категоріями:** Окремі повзунки (0% - 100%) для кастомних пісень, ванільного саундтреку та музичних платівок.
+  * **Індивідуальна гучність окремих пісень:** Можливість налаштувати тихіше будь-який окремий трек. При піднятті гучності до 100% трек автоматично прибирається зі списку налаштувань.
+  * **Миттєве оновлення:** Зміна повзунка одразу ж оновлює гучність каналу OpenAL у реальному часі.
+* 📁 **Керування файлами з гри:**
+  * **Нативний провідник:** Кнопка «Додати музику» відкриває системний діалог Windows Explorer для вибору файлів `.mp3` та `.ogg`.
+  * **Видалення файлів:** Спеціальний екран зі списком та пошуком для безпечного видалення кастомних файлів з диску через кнопку `[✕]`.
 * 📌 **HUD Міні-плеєр (`Ctrl + O`):**
   * Компактна плашка (96x34) у правому верхньому куті екрана.
-  * Точний таймлайн у реальному часі: пройдений час, скільки залишилося (`-хв:сек`), загальна тривалість та смужка прогресу.
-  * Плавна анімація (slide-in / slide-out) під час зміни треків або відкриття вікна.
-  * Режим постійного закріплення (`Ctrl + O`) або автоматична поява на 7 секунд при старті нової пісні.
-* ⚙️ **Меню налаштувань у грі (`Ctrl + P`):**
-  * **Нативний вибір файлів:** Кнопка «Додати музику» відкриває системний провідник Windows Explorer. Підтримується вибір кількох файлів одночасно (Ctrl / Shift).
-  * **Швидке прослуховування:** Кнопка `▶` / `⏸` біля кожної пісні для миттєвого тестування чи зупинки.
-  * **Перетягування треків (Drag-and-Drop):** Зручна зміна порядку пісень мишкою прямо у списку.
-  * **Вимкнення окремих треків:** Можливість тимчасово вимкнути будь-яку композицію чекбоксом.
-  * **Повзунки затримки тиші:** Налаштування мінімальної та максимальної паузи між піснями у секундах.
-  * **Режими відтворення:** Випадковий вибір (Random) або послідовне відтворення за списком (Sequential).
+  * Точний таймлайн у реальному часі: пройдений час, скільки залишилося (`-хв:сек`), загальна тривалість, значок плей/паузи та смужка прогресу.
+  * Плавна анімація (slide-in / slide-out). Режим постійного закріплення (`Ctrl + O`) або автоматична поява на 7 секунд при старті нової пісні.
+* ⚡ **Миттєва апаратна перемотка без лагів та коректне завершення треків:**
+  * 30-секундний кільцевий PCM-буфер історії пам'яті для миттєвої перемотки назад на 5 секунд без повторного декодування з нульовим навантаженням на CPU (0 мс).
+  * Коректне повернення EOF для запобігання зацикленню пустих OpenAL буферів після закінчення пісні.
 * 🔊 **Безперервне фонове відтворення:**
   * Музика не зупиняється і не ставиться на паузу при відкритті меню паузи, налаштувань гри чи меню мода.
 * 🎶 **Підтримка всіх 79 ванільних треків Minecraft 1.21.1:**

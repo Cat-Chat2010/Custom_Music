@@ -1,5 +1,6 @@
 package com.cat.custommusic.config;
 
+import com.cat.custommusic.audio.OggAudioHelper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
@@ -13,16 +14,29 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Керування конфігурацією мода (settings.json).
+ * Керування конфігурацією мода (settings.json):
+ * - Альбоми та плейлисти.
+ * - Регулювання гучності за категоріями (кастомна, ванільна, платівки) та для окремих треків.
+ * - Налаштування затримок між треками.
  */
 public class MusicConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(MusicConfig.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private PlaybackMode playbackMode = PlaybackMode.RANDOM;
+    private PlaybackMode playbackMode = PlaybackMode.SEQUENTIAL;
     private int minDelaySeconds = 20;
     private int maxDelaySeconds = 60;
     private List<TrackEntry> tracks = new ArrayList<>();
+
+    // Налаштування гучності (0.0f - 1.0f)
+    private float customVolume = 1.0f;
+    private float vanillaVolume = 1.0f;
+    private float discVolume = 1.0f;
+    private Map<String, Float> trackVolumes = new HashMap<>();
+
+    // Альбоми
+    private List<Album> albums = new ArrayList<>();
+    private String activeAlbumId = "all_tracks";
 
     // Не серіалізується у json
     private transient Path configPath;
@@ -69,13 +83,88 @@ public class MusicConfig {
 
     private void validateAndNormalize() {
         if (playbackMode == null) {
-            playbackMode = PlaybackMode.RANDOM;
+            playbackMode = PlaybackMode.SEQUENTIAL;
         }
         if (minDelaySeconds < 0) minDelaySeconds = 0;
         if (maxDelaySeconds < minDelaySeconds) maxDelaySeconds = minDelaySeconds;
         if (tracks == null) {
             tracks = new ArrayList<>();
         }
+        if (trackVolumes == null) {
+            trackVolumes = new HashMap<>();
+        } else {
+            // Видаляємо пісні зі 100% гучністю
+            trackVolumes.entrySet().removeIf(entry -> entry.getValue() == null || Math.abs(entry.getValue() - 1.0f) < 0.005f);
+        }
+
+        customVolume = Math.max(0.0f, Math.min(1.0f, customVolume));
+        vanillaVolume = Math.max(0.0f, Math.min(1.0f, vanillaVolume));
+        discVolume = Math.max(0.0f, Math.min(1.0f, discVolume));
+
+        if (albums == null) {
+            albums = new ArrayList<>();
+        }
+
+        // Перевіряємо наявність обов'язкового перманентного альбому "Усі пісні"
+        Album allTracksAlbum = null;
+        for (Album a : albums) {
+            if ("all_tracks".equals(a.getId()) || a.isPermanent()) {
+                allTracksAlbum = a;
+                break;
+            }
+        }
+
+        if (allTracksAlbum == null) {
+            allTracksAlbum = new Album("all_tracks", "Усі пісні", true, new ArrayList<>());
+            albums.add(0, allTracksAlbum);
+        } else {
+            allTracksAlbum.setId("all_tracks");
+            allTracksAlbum.setPermanent(true);
+        }
+
+        // Синхронізуємо треки альбому "all_tracks"
+        List<String> allIds = new ArrayList<>();
+        Set<String> existingInAll = new LinkedHashSet<>(allTracksAlbum.getTrackIds());
+        for (String id : existingInAll) {
+            if (hasTrackWithId(id)) {
+                allIds.add(id);
+            }
+        }
+        for (TrackEntry t : tracks) {
+            if (!existingInAll.contains(t.getId())) {
+                allIds.add(t.getId());
+            }
+        }
+        allTracksAlbum.setTrackIds(allIds);
+
+        // Перевіряємо валідність активного альбому
+        if (activeAlbumId == null || !hasAlbumWithId(activeAlbumId)) {
+            activeAlbumId = "all_tracks";
+        }
+    }
+
+    private boolean hasTrackWithId(String id) {
+        if (id == null) return false;
+        for (TrackEntry t : tracks) {
+            if (id.equals(t.getId())) return true;
+        }
+        return false;
+    }
+
+    private boolean hasAlbumWithId(String id) {
+        if (id == null) return false;
+        for (Album a : albums) {
+            if (id.equals(a.getId())) return true;
+        }
+        return false;
+    }
+
+    private boolean hasAlbumWithName(String name) {
+        if (name == null) return false;
+        for (Album a : albums) {
+            if (name.equalsIgnoreCase(a.getName())) return true;
+        }
+        return false;
     }
 
     /**
@@ -131,7 +220,7 @@ public class MusicConfig {
             }
         }
 
-        // 3. Додаємо ванільні треки, якщо їх ще не було (наприклад при першому старті або нові оновлення)
+        // 3. Додаємо ванільні треки, якщо їх ще не було
         if (defaultVanillaTracks != null) {
             for (TrackEntry vanilla : defaultVanillaTracks) {
                 if (!updatedIds.contains(vanilla.getId())) {
@@ -142,7 +231,20 @@ public class MusicConfig {
         }
 
         this.tracks = updatedTracks;
+        validateAndNormalize();
         save();
+    }
+
+    public List<TrackEntry> getTracks() {
+        return tracks;
+    }
+
+    public TrackEntry getTrackById(String id) {
+        if (id == null) return null;
+        for (TrackEntry t : tracks) {
+            if (id.equals(t.getId())) return t;
+        }
+        return null;
     }
 
     public PlaybackMode getPlaybackMode() {
@@ -175,18 +277,6 @@ public class MusicConfig {
         save();
     }
 
-    public List<TrackEntry> getTracks() {
-        return tracks;
-    }
-
-    public void moveTrack(int fromIndex, int toIndex) {
-        if (fromIndex >= 0 && fromIndex < tracks.size() && toIndex >= 0 && toIndex < tracks.size()) {
-            TrackEntry entry = tracks.remove(fromIndex);
-            tracks.add(toIndex, entry);
-            save();
-        }
-    }
-
     public void toggleTrack(TrackEntry entry) {
         if (entry != null) {
             entry.setEnabled(!entry.isEnabled());
@@ -194,10 +284,243 @@ public class MusicConfig {
         }
     }
 
-    public void removeCustomTrack(TrackEntry entry) {
+    /**
+     * Повне видалення кастомного треку звідусіль (із загального списку, дисків, альбомів та налаштувань гучності).
+     */
+    public synchronized void removeCustomTrack(TrackEntry entry) {
         if (entry != null && entry.isCustom()) {
             tracks.remove(entry);
+            trackVolumes.remove(entry.getId());
+            for (Album a : albums) {
+                a.getTrackIds().remove(entry.getId());
+            }
             save();
         }
+    }
+
+    // ==================== АЛЬБОМИ ====================
+
+    public List<Album> getAlbums() {
+        return albums;
+    }
+
+    public Album getActiveAlbum() {
+        for (Album a : albums) {
+            if (a.getId().equals(activeAlbumId)) {
+                return a;
+            }
+        }
+        if (!albums.isEmpty()) {
+            activeAlbumId = albums.get(0).getId();
+            return albums.get(0);
+        }
+        Album fallback = new Album("all_tracks", "Усі пісні", true, new ArrayList<>());
+        albums.add(fallback);
+        activeAlbumId = fallback.getId();
+        return fallback;
+    }
+
+    public void setActiveAlbum(Album album) {
+        if (album != null) {
+            this.activeAlbumId = album.getId();
+            save();
+        }
+    }
+
+    /**
+     * Створює новий альбом. Якщо ім'я порожнє, автоматично присвоює "Альбом N" починаючи з 0.
+     */
+    public synchronized Album createAlbum(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            int num = 0;
+            while (hasAlbumWithName("Альбом " + num)) {
+                num++;
+            }
+            name = "Альбом " + num;
+        }
+        String id = "album_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 5);
+        Album album = new Album(id, name.trim(), false, new ArrayList<>());
+        this.albums.add(album);
+        this.activeAlbumId = id;
+        save();
+        return album;
+    }
+
+    /**
+     * Видаляє альбом (не дозволяє видаляти перманентний альбом "Усі пісні").
+     */
+    public synchronized boolean deleteAlbum(String albumId) {
+        Album toRemove = null;
+        for (Album a : albums) {
+            if (a.getId().equals(albumId)) {
+                if (a.isPermanent()) return false;
+                toRemove = a;
+                break;
+            }
+        }
+        if (toRemove != null) {
+            albums.remove(toRemove);
+            if (activeAlbumId.equals(albumId)) {
+                activeAlbumId = "all_tracks";
+            }
+            save();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Повертає впорядкований список TrackEntry для конкретного альбому.
+     */
+    public List<TrackEntry> getTracksForAlbum(Album album) {
+        if (album == null) return Collections.emptyList();
+        List<TrackEntry> result = new ArrayList<>();
+        if (album.isPermanent()) {
+            Set<String> added = new HashSet<>();
+            for (String id : album.getTrackIds()) {
+                TrackEntry t = getTrackById(id);
+                if (t != null && !added.contains(id)) {
+                    result.add(t);
+                    added.add(id);
+                }
+            }
+            // Додаємо нові треки, яких ще не було в ID
+            for (TrackEntry t : tracks) {
+                if (!added.contains(t.getId())) {
+                    result.add(t);
+                    album.getTrackIds().add(t.getId());
+                }
+            }
+        } else {
+            List<String> valid = new ArrayList<>();
+            for (String id : album.getTrackIds()) {
+                TrackEntry t = getTrackById(id);
+                if (t != null) {
+                    result.add(t);
+                    valid.add(id);
+                }
+            }
+            album.setTrackIds(valid);
+        }
+        return result;
+    }
+
+    public synchronized void addTrackToAlbum(Album album, String trackId) {
+        if (album == null || album.isPermanent() || trackId == null) return;
+        if (!album.getTrackIds().contains(trackId)) {
+            album.getTrackIds().add(trackId);
+            save();
+        }
+    }
+
+    public synchronized void removeTrackFromAlbum(Album album, String trackId) {
+        if (album == null || album.isPermanent() || trackId == null) return;
+        if (album.getTrackIds().remove(trackId)) {
+            save();
+        }
+    }
+
+    public synchronized void moveAlbumTrack(Album album, int fromIndex, int toIndex) {
+        if (album == null) return;
+        List<String> ids = album.getTrackIds();
+        if (fromIndex >= 0 && fromIndex < ids.size() && toIndex >= 0 && toIndex < ids.size()) {
+            String item = ids.remove(fromIndex);
+            ids.add(toIndex, item);
+            album.setSortMode("custom"); // Автоматично вмикає режим "Своє"
+            save();
+        }
+    }
+
+    public synchronized void sortAlbum(Album album, String sortMode) {
+        if (album == null) return;
+        album.setSortMode(sortMode);
+        if ("custom".equals(sortMode)) {
+            save();
+            return;
+        }
+
+        List<TrackEntry> albumTracks = getTracksForAlbum(album);
+        if ("name".equals(sortMode)) {
+            albumTracks.sort(Comparator.comparing(t -> t.getDisplayName().toLowerCase(Locale.ROOT)));
+        } else if ("duration".equals(sortMode)) {
+            albumTracks.sort(Comparator.comparingInt(OggAudioHelper::getTrackDurationSeconds));
+        } else if ("type".equals(sortMode)) {
+            albumTracks.sort((a, b) -> {
+                int typeA = a.isCustom() ? 0 : (a.isDisc() ? 2 : 1);
+                int typeB = b.isCustom() ? 0 : (b.isDisc() ? 2 : 1);
+                if (typeA != typeB) return Integer.compare(typeA, typeB);
+                return a.getDisplayName().compareToIgnoreCase(b.getDisplayName());
+            });
+        }
+
+        List<String> newIds = new ArrayList<>();
+        for (TrackEntry t : albumTracks) {
+            newIds.add(t.getId());
+        }
+        album.setTrackIds(newIds);
+        save();
+    }
+
+    public synchronized void shuffleAlbum(Album album) {
+        if (album == null) return;
+        Collections.shuffle(album.getTrackIds());
+        album.setSortMode("custom");
+        save();
+    }
+
+    // ==================== ГУЧНІСТЬ ====================
+
+    public float getCustomVolume() {
+        return customVolume;
+    }
+
+    public void setCustomVolume(float customVolume) {
+        this.customVolume = Math.max(0.0f, Math.min(1.0f, customVolume));
+        save();
+    }
+
+    public float getVanillaVolume() {
+        return vanillaVolume;
+    }
+
+    public void setVanillaVolume(float vanillaVolume) {
+        this.vanillaVolume = Math.max(0.0f, Math.min(1.0f, vanillaVolume));
+        save();
+    }
+
+    public float getDiscVolume() {
+        return discVolume;
+    }
+
+    public void setDiscVolume(float discVolume) {
+        this.discVolume = Math.max(0.0f, Math.min(1.0f, discVolume));
+        save();
+    }
+
+    public float getTrackVolume(String trackId) {
+        if (trackId == null || trackVolumes == null) return 1.0f;
+        return trackVolumes.getOrDefault(trackId, 1.0f);
+    }
+
+    public synchronized void setTrackVolume(String trackId, float volume) {
+        if (trackId == null) return;
+        if (trackVolumes == null) {
+            trackVolumes = new HashMap<>();
+        }
+        float clamped = Math.max(0.0f, Math.min(1.0f, volume));
+        if (Math.abs(clamped - 1.0f) < 0.005f) {
+            // При досягненні 100% пісня видаляється з налаштувань
+            trackVolumes.remove(trackId);
+        } else {
+            trackVolumes.put(trackId, clamped);
+        }
+        save();
+    }
+
+    public Map<String, Float> getTrackVolumes() {
+        if (trackVolumes == null) {
+            trackVolumes = new HashMap<>();
+        }
+        return trackVolumes;
     }
 }

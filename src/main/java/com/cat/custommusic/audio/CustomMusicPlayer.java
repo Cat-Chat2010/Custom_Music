@@ -14,7 +14,14 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.cat.custommusic.mixin.SoundEngineAccessor;
+import com.cat.custommusic.mixin.SoundManagerAccessor;
+import com.mojang.blaze3d.audio.Channel;
+import net.minecraft.client.sounds.ChannelAccess;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundManager;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -36,8 +43,12 @@ public class CustomMusicPlayer {
     private int currentTrackElapsedTicks = 0;
     private int currentTrackTotalDurationTicks = 180 * 20;
     private boolean isManuallyStopped = false;
+    private boolean isPaused = false;
     private boolean wasMuted = false;
     private int resumeCooldown = 0;
+    private final java.util.ArrayDeque<TrackEntry> trackHistory = new java.util.ArrayDeque<>();
+    private final java.util.concurrent.atomic.AtomicBoolean isSeeking = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private volatile int pendingSeekSeconds = -1;
 
     public CustomMusicPlayer() {
         this.minecraft = Minecraft.getInstance();
@@ -59,7 +70,7 @@ public class CustomMusicPlayer {
         }
 
         // Якщо користувач вручну зупинив музику — нові пісні автоматично НЕ починаються
-        if (this.isManuallyStopped) {
+        if (this.isManuallyStopped || this.isPaused) {
             return;
         }
 
@@ -86,12 +97,14 @@ public class CustomMusicPlayer {
                 return;
             }
 
-            // Якщо звук фізично активний — продовжуємо відлік часу (ніколи не перериваємо звук завчасно!)
+            // Якщо звук фізично активний — продовжуємо відлік часу
             if (active) {
-                this.currentTrackElapsedTicks++;
-                if (this.currentTrackElapsedTicks > this.currentTrackTotalDurationTicks) {
-                    this.currentTrackTotalDurationTicks = this.currentTrackElapsedTicks;
+                // Якщо минув повний час тривалості треку (+ 1 секунда запасу = 20 тіків) — завершуємо трек
+                if (this.currentTrackElapsedTicks >= this.currentTrackTotalDurationTicks + 20) {
+                    finishCurrentTrack();
+                    return;
                 }
+                this.currentTrackElapsedTicks++;
                 return;
             }
 
@@ -125,6 +138,7 @@ public class CustomMusicPlayer {
         this.currentTrack = null;
         this.currentTrackElapsedTicks = 0;
         this.wasMuted = false;
+        com.cat.custommusic.gui.NowPlayingHud.onTrackStopped();
         scheduleNextDelay();
     }
 
@@ -147,7 +161,7 @@ public class CustomMusicPlayer {
             }
 
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundLocation);
-            this.currentMusicInstance = SimpleSoundInstance.forMusic(soundEvent);
+            this.currentMusicInstance = new CustomMusicSoundInstance(soundEvent, this.currentTrack);
             this.minecraft.getSoundManager().play(this.currentMusicInstance);
             LOGGER.info("[CustomMusic] Відновлено звучання поточного треку: {}", this.currentTrack.getDisplayName());
         } catch (Exception e) {
@@ -156,45 +170,35 @@ public class CustomMusicPlayer {
     }
 
     /**
-     * Обирає та запускає наступний трек згідно з налаштуваннями.
+     * Обирає та запускає наступний трек по порядку з активного альбому (з циклічним переходом).
      */
     public void playNextTrack() {
         this.isManuallyStopped = false;
         MusicConfig config = CustomMusicMod.getInstance().getConfig();
         if (config == null) return;
 
-        List<TrackEntry> activeTracks = config.getTracks().stream()
+        com.cat.custommusic.config.Album activeAlbum = config.getActiveAlbum();
+        List<TrackEntry> activeTracks = config.getTracksForAlbum(activeAlbum).stream()
                 .filter(TrackEntry::isEnabled)
                 .collect(Collectors.toList());
 
         if (activeTracks.isEmpty()) {
-            // Немає активних треків — чекаємо
             scheduleNextDelay();
             return;
         }
 
-        TrackEntry selectedTrack;
-        if (config.getPlaybackMode() == PlaybackMode.RANDOM) {
-            if (activeTracks.size() == 1) {
-                selectedTrack = activeTracks.get(0);
-            } else {
-                // Обираємо випадковий трек, бажано не той самий щойно зіграний
-                int index;
-                do {
-                    index = random.nextInt(activeTracks.size());
-                    selectedTrack = activeTracks.get(index);
-                } while (selectedTrack.equals(currentTrack) && activeTracks.size() > 1);
+        int currentIndex = -1;
+        if (this.currentTrack != null) {
+            for (int i = 0; i < activeTracks.size(); i++) {
+                if (activeTracks.get(i).equals(this.currentTrack)) {
+                    currentIndex = i;
+                    break;
+                }
             }
-        } else {
-            // SEQUENTIAL: по порядку списку
-            if (sequentialIndex >= activeTracks.size()) {
-                sequentialIndex = 0;
-            }
-            selectedTrack = activeTracks.get(sequentialIndex);
-            sequentialIndex = (sequentialIndex + 1) % activeTracks.size();
         }
 
-        playTrack(selectedTrack);
+        int nextIndex = (currentIndex + 1) % activeTracks.size();
+        playTrack(activeTracks.get(nextIndex));
     }
 
     /**
@@ -205,7 +209,14 @@ public class CustomMusicPlayer {
             this.minecraft.getSoundManager().stop(this.currentMusicInstance);
             this.currentMusicInstance = null;
         }
+        if (this.currentTrack != null && !this.currentTrack.equals(track)) {
+            this.trackHistory.push(this.currentTrack);
+            if (this.trackHistory.size() > 50) {
+                this.trackHistory.removeLast();
+            }
+        }
         this.isManuallyStopped = false;
+        this.isPaused = false;
         this.wasMuted = false;
         this.resumeCooldown = 0;
 
@@ -219,7 +230,7 @@ public class CustomMusicPlayer {
 
         try {
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundLocation);
-            this.currentMusicInstance = SimpleSoundInstance.forMusic(soundEvent);
+            this.currentMusicInstance = new CustomMusicSoundInstance(soundEvent, track);
             this.currentTrack = track;
             this.currentTrackElapsedTicks = 0;
 
@@ -259,6 +270,7 @@ public class CustomMusicPlayer {
      */
     public void stopPlaying() {
         this.isManuallyStopped = true;
+        this.isPaused = false;
         if (this.currentMusicInstance != null) {
             this.minecraft.getSoundManager().stop(this.currentMusicInstance);
             this.currentMusicInstance = null;
@@ -331,6 +343,10 @@ public class CustomMusicPlayer {
         return this.currentMusicInstance != null;
     }
 
+    public boolean isPaused() {
+        return this.isPaused;
+    }
+
     @Nullable
     public TrackEntry getCurrentTrack() {
         return currentTrack;
@@ -338,5 +354,185 @@ public class CustomMusicPlayer {
 
     public int getNextSongDelayTicks() {
         return nextSongDelayTicks;
+    }
+
+    /**
+     * Повертає на попередній трек у поточному альбомі по порядку (з циклічним переходом).
+     */
+    public void playPreviousTrack() {
+        this.isManuallyStopped = false;
+        this.isPaused = false;
+        MusicConfig config = CustomMusicMod.getInstance().getConfig();
+        if (config == null) return;
+
+        com.cat.custommusic.config.Album activeAlbum = config.getActiveAlbum();
+        List<TrackEntry> activeTracks = config.getTracksForAlbum(activeAlbum).stream()
+                .filter(TrackEntry::isEnabled)
+                .collect(Collectors.toList());
+
+        if (activeTracks.isEmpty()) return;
+
+        int currentIndex = -1;
+        if (this.currentTrack != null) {
+            for (int i = 0; i < activeTracks.size(); i++) {
+                if (activeTracks.get(i).equals(this.currentTrack)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+        }
+
+        int prevIndex;
+        if (currentIndex <= 0) {
+            prevIndex = activeTracks.size() - 1;
+        } else {
+            prevIndex = currentIndex - 1;
+        }
+
+        playTrack(activeTracks.get(prevIndex));
+    }
+
+    public float getTrackEffectiveVolume(TrackEntry track) {
+        if (track == null) return 1.0f;
+        MusicConfig config = CustomMusicMod.getInstance().getConfig();
+        if (config == null) return 1.0f;
+
+        float typeFactor;
+        if (track.isCustom()) {
+            typeFactor = config.getCustomVolume();
+        } else if (track.isDisc()) {
+            typeFactor = config.getDiscVolume();
+        } else {
+            typeFactor = config.getVanillaVolume();
+        }
+
+        float trackFactor = config.getTrackVolume(track.getId());
+        return Math.max(0.0f, Math.min(1.0f, typeFactor * trackFactor));
+    }
+
+    public void updateCurrentTrackVolume() {
+        if (this.currentMusicInstance != null && this.currentTrack != null) {
+            ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+            if (handle != null) {
+                float master = this.minecraft.options.getSoundSourceVolume(SoundSource.MASTER);
+                float music = this.minecraft.options.getSoundSourceVolume(SoundSource.MUSIC);
+                float eff = getTrackEffectiveVolume(this.currentTrack);
+                float finalVol = master * music * eff;
+                handle.execute(channel -> channel.setVolume(finalVol));
+            }
+        }
+    }
+
+    /**
+     * Ставить відтворення на паузу через канал OpenAL.
+     */
+    public void pause() {
+        if (this.currentMusicInstance != null && !this.isPaused) {
+            ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+            if (handle != null) {
+                handle.execute(Channel::pause);
+                this.isPaused = true;
+                LOGGER.info("[CustomMusic] Відтворення призупинено.");
+            }
+        }
+    }
+
+    /**
+     * Відновлює відтворення після паузи через канал OpenAL.
+     */
+    public void resume() {
+        if (this.currentMusicInstance != null && this.isPaused) {
+            ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+            if (handle != null) {
+                handle.execute(Channel::unpause);
+                this.isPaused = false;
+                LOGGER.info("[CustomMusic] Відтворення відновлено з паузи.");
+            }
+        }
+    }
+
+    /**
+     * Перемикає стан: Грати / Пауза.
+     */
+    public void togglePlayPause() {
+        if (this.currentMusicInstance != null) {
+            if (this.isPaused) {
+                resume();
+            } else {
+                pause();
+            }
+        } else {
+            playNextTrack();
+        }
+    }
+
+    /**
+     * Перемотує поточний трек на вказану секунду з атомарним захистом від перевантаження.
+     */
+    public void seekTo(int targetSeconds) {
+        if (this.currentMusicInstance == null || this.currentTrack == null) return;
+        int total = getTrackTotalSeconds();
+        int clamped = Math.max(0, Math.min(total - 1, targetSeconds));
+        this.currentTrackElapsedTicks = clamped * 20;
+
+        ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+        if (handle == null) return;
+
+        if (!isSeeking.compareAndSet(false, true)) {
+            pendingSeekSeconds = clamped;
+            return;
+        }
+
+        executeSeek(handle, clamped);
+    }
+
+    private void executeSeek(ChannelAccess.ChannelHandle handle, int targetSeconds) {
+        final boolean wasPaused = this.isPaused;
+        net.minecraft.Util.backgroundExecutor().execute(() -> {
+            try {
+                handle.execute(channel -> {
+                    if (channel instanceof ISeekableChannel seekable) {
+                        seekable.custommusic$seek(targetSeconds);
+                        if (wasPaused) {
+                            channel.pause();
+                        }
+                    }
+                });
+            } catch (Throwable t) {
+                LOGGER.error("[CustomMusic] Помилка перемотки: ", t);
+            } finally {
+                isSeeking.set(false);
+                int next = pendingSeekSeconds;
+                if (next != -1) {
+                    pendingSeekSeconds = -1;
+                    if (next != targetSeconds) {
+                        seekTo(next);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * Перемотує поточний трек вперед (+) або назад (-) на вказану кількість секунд.
+     */
+    public void seekRelative(int deltaSeconds) {
+        seekTo(getTrackElapsedSeconds() + deltaSeconds);
+    }
+
+    /**
+     * Знаходить ChannelHandle для конкретного екземпляра SoundInstance в SoundEngine.
+     */
+    public ChannelAccess.ChannelHandle getChannelHandle(SoundInstance instance) {
+        if (instance == null || this.minecraft == null) return null;
+        try {
+            SoundManager soundManager = this.minecraft.getSoundManager();
+            SoundEngine soundEngine = ((SoundManagerAccessor) soundManager).custommusic$getSoundEngine();
+            Map<SoundInstance, ChannelAccess.ChannelHandle> map = ((SoundEngineAccessor) soundEngine).custommusic$getInstanceToChannel();
+            return map.get(instance);
+        } catch (Throwable t) {
+            LOGGER.warn("[CustomMusic] Не вдалося отримати ChannelHandle: {}", t.getMessage());
+            return null;
+        }
     }
 }

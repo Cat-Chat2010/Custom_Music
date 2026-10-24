@@ -15,8 +15,8 @@ public class SoundManagerMixin {
 
     @Inject(method = "pause", at = @At("TAIL"))
     private void onPause(CallbackInfo ci) {
-        // Якщо грає музика, продовжуємо відтворення в налаштуваннях гри
-        if (CustomMusicPlayer.getInstance().isPlaying()) {
+        // Якщо грає музика і вона не на паузі користувачем, продовжуємо відтворення в налаштуваннях гри
+        if (CustomMusicPlayer.getInstance().isPlaying() && !CustomMusicPlayer.getInstance().isPaused()) {
             ((SoundManager) (Object) this).resume();
         }
     }
