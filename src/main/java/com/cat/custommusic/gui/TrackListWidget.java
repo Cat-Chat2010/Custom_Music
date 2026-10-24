@@ -222,13 +222,13 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
             String typeBadge;
             ChatFormatting badgeStyle;
             if (track.isCustom()) {
-                typeBadge = "[Custom] ";
+                typeBadge = net.minecraft.client.resources.language.I18n.get("gui.custommusic.badge.custom") + " ";
                 badgeStyle = ChatFormatting.AQUA;
             } else if (com.cat.custommusic.config.VanillaTracks.isDisc(track.getId())) {
-                typeBadge = "[Disc] ";
+                typeBadge = net.minecraft.client.resources.language.I18n.get("gui.custommusic.badge.disc") + " ";
                 badgeStyle = ChatFormatting.GOLD;
             } else {
-                typeBadge = "[Vanilla] ";
+                typeBadge = net.minecraft.client.resources.language.I18n.get("gui.custommusic.badge.vanilla") + " ";
                 badgeStyle = ChatFormatting.GRAY;
             }
             Component badgeComponent = Component.literal(typeBadge).withStyle(badgeStyle);

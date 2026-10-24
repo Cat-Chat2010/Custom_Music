@@ -42,6 +42,9 @@ This project was developed by **Cat-Chat2010** with the assistance of **Artifici
   * Direct `.ogg` file import without requiring FFmpeg.
 * 🎛️ **Optional FFmpeg Audio Converter:**
   * Automatic background conversion for `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` when FFmpeg is available.
+* 🌐 **Full Multi-Language Support:**
+  * Native in-game localization for English (`en_us.json`), Ukrainian (`uk_ua.json`), and Russian (`ru_ru.json`).
+  * Automatic English fallback for all other languages selected in Minecraft.
 * 🛡️ **User File Safety:**
   * Your original music files are never altered, moved, or deleted — only safe working copies are created.
 
@@ -110,6 +113,9 @@ Distributed under the **MIT License**.
   * Прямий імпорт `.ogg` файлів без потреби у FFmpeg.
 * 🎛️ **Опціональний конвертер FFmpeg:**
   * Автоматична фонова конвертація `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` за наявності FFmpeg.
+* 🌐 **Повноцінна багатомовна локалізація:**
+  * Повна підтримка англійської (`en_us.json`), української (`uk_ua.json`) та російської (`ru_ru.json`) мов інтерфейсу.
+  * Автоматичне використання англійської мови як резервної для будь-яких інших мов гри.
 * 🛡️ **Безпека файлів користувача:**
   * Ваші оригінальні аудіофайли ніколи не видаляються і не змінюються — створюються лише робочі копії.
 

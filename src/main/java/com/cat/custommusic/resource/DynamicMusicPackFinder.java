@@ -40,7 +40,7 @@ public class DynamicMusicPackFinder implements RepositorySource {
     public void loadPacks(Consumer<Pack> packConsumer) {
         PackLocationInfo locationInfo = new PackLocationInfo(
                 PACK_ID,
-                Component.literal("Custom Music Audio Pack"),
+                Component.translatable("pack.custommusic.title"),
                 PackSource.BUILT_IN,
                 Optional.empty()
         );

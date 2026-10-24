@@ -59,7 +59,7 @@ public class CustomMusicMod {
         event.enqueueWork(() -> {
             LOGGER.info("[CustomMusic] Клієнтське налаштування завершено. Перевірка папки import/ на наявність нових треків...");
             // Запускаємо первинний автоімпорт у фоні при старті клієнта (OGG імпортуються навіть без FFmpeg)
-            ffmpegConverter.convertAllImportsAsync(msg -> LOGGER.info("[CustomMusic-Import] {}", msg))
+            ffmpegConverter.convertAllImportsAsync(msg -> LOGGER.info("[CustomMusic-Import] {}", msg.getString()))
                     .thenAccept(count -> {
                         if (count > 0) {
                             LOGGER.info("[CustomMusic] Автоімпорт завершено ({} треків). Оновлюємо список треків...", count);

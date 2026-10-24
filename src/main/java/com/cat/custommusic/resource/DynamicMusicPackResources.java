@@ -145,7 +145,7 @@ public class DynamicMusicPackResources implements PackResources {
         if ("pack".equals(deserializer.getMetadataSectionName())) {
             int packVersion = SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES);
             PackMetadataSection section = new PackMetadataSection(
-                    Component.literal("Динамічний ресурс-пак для треків Custom Music"),
+                    Component.translatable("pack.custommusic.description"),
                     packVersion,
                     Optional.empty()
             );

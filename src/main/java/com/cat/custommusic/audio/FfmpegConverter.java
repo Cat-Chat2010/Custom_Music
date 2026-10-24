@@ -162,12 +162,12 @@ public class FfmpegConverter {
      * Файли .ogg обробляються напряму без FFmpeg, навіть якщо FFmpeg не встановлено.
      * Для інших форматів (.mp3, .wav тощо) за потреби використовується FFmpeg.
      */
-    public CompletableFuture<Integer> convertAllImportsAsync(Consumer<String> progressConsumer) {
+    public CompletableFuture<Integer> convertAllImportsAsync(Consumer<net.minecraft.network.chat.Component> progressConsumer) {
         return CompletableFuture.supplyAsync(() -> {
             List<Path> importFiles = directoryManager.getImportFiles();
             if (importFiles.isEmpty()) {
                 if (progressConsumer != null) {
-                    progressConsumer.accept("Папка import/ порожня.");
+                    progressConsumer.accept(net.minecraft.network.chat.Component.translatable("gui.custommusic.status.import_empty"));
                 }
                 return 0;
             }
@@ -197,7 +197,7 @@ public class FfmpegConverter {
                     // Файли .ogg переносимо НАПРЯМУ без FFmpeg!
                     try {
                         if (progressConsumer != null) {
-                            progressConsumer.accept(String.format("Імпорт OGG (%d/%d): %s", i + 1, total, fileName));
+                            progressConsumer.accept(net.minecraft.network.chat.Component.translatable("gui.custommusic.status.importing_ogg", (i + 1), total, fileName));
                         }
                         Files.move(input, output, StandardCopyOption.REPLACE_EXISTING);
                         processedCount++;
@@ -213,7 +213,7 @@ public class FfmpegConverter {
                     }
 
                     if (progressConsumer != null) {
-                        progressConsumer.accept(String.format("Конвертація (%d/%d): %s", i + 1, total, fileName));
+                        progressConsumer.accept(net.minecraft.network.chat.Component.translatable("gui.custommusic.status.converting", (i + 1), total, fileName));
                     }
 
                     boolean success = convertFile(input, output);
@@ -225,9 +225,9 @@ public class FfmpegConverter {
 
             if (progressConsumer != null) {
                 if (skippedDueToNoFfmpeg > 0) {
-                    progressConsumer.accept(String.format("Імпортовано: %d. Пропущено: %d (потрібен FFmpeg для MP3/WAV)", processedCount, skippedDueToNoFfmpeg));
+                    progressConsumer.accept(net.minecraft.network.chat.Component.translatable("gui.custommusic.status.finished_skipped", processedCount, skippedDueToNoFfmpeg));
                 } else {
-                    progressConsumer.accept(String.format("Завершено! Імпортовано треків: %d з %d", processedCount, total));
+                    progressConsumer.accept(net.minecraft.network.chat.Component.translatable("gui.custommusic.status.finished_all", processedCount, total));
                 }
             }
 

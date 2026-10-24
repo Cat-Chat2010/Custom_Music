@@ -71,7 +71,7 @@ public class CustomMusicClientEvents {
             }
 
             Button customMusicButton = Button.builder(
-                    Component.literal("🎵 Кастомна музика..."),
+                    Component.translatable("options.custommusic.button"),
                     btn -> Minecraft.getInstance().setScreen(new CustomMusicScreen(soundOptionsScreen))
             ).bounds(targetX, targetY, 150, 20).build();
 

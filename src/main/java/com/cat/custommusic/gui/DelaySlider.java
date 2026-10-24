@@ -9,14 +9,14 @@ import java.util.function.Consumer;
  * Слайдер для налаштування затримки тиші між треками (у секундах).
  */
 public class DelaySlider extends AbstractSliderButton {
-    private final String prefix;
+    private final String translationKey;
     private final int minSec;
     private final int maxSec;
     private final Consumer<Integer> onValueChanged;
 
-    public DelaySlider(int x, int y, int width, int height, String prefix, int currentSec, int minSec, int maxSec, Consumer<Integer> onValueChanged) {
+    public DelaySlider(int x, int y, int width, int height, String translationKey, int currentSec, int minSec, int maxSec, Consumer<Integer> onValueChanged) {
         super(x, y, width, height, Component.empty(), (double) (currentSec - minSec) / (maxSec - minSec));
-        this.prefix = prefix;
+        this.translationKey = translationKey;
         this.minSec = minSec;
         this.maxSec = maxSec;
         this.onValueChanged = onValueChanged;
@@ -35,7 +35,7 @@ public class DelaySlider extends AbstractSliderButton {
 
     @Override
     protected void updateMessage() {
-        setMessage(Component.literal(prefix + ": " + getSeconds() + " с"));
+        setMessage(Component.translatable(translationKey, getSeconds()));
     }
 
     @Override

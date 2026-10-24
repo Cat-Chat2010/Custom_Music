@@ -5,10 +5,13 @@ import com.cat.custommusic.audio.CustomMusicPlayer;
 import com.cat.custommusic.audio.FfmpegConverter;
 import com.cat.custommusic.config.MusicConfig;
 import com.cat.custommusic.config.PlaybackMode;
+import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -40,10 +43,10 @@ public class CustomMusicScreen extends Screen {
     private Button importButton;
     private DelaySlider minDelaySlider;
     private DelaySlider maxDelaySlider;
-    private String statusMessage = "";
+    private Component statusComponent = null;
 
     public CustomMusicScreen(Screen parentScreen) {
-        super(Component.literal("Налаштування фонової музики"));
+        super(Component.translatable("gui.custommusic.title"));
         this.parentScreen = parentScreen;
     }
 
@@ -73,7 +76,7 @@ public class CustomMusicScreen extends Screen {
 
         // Кнопка відкриття провідника / вибору файлів
         this.addMusicButton = Button.builder(
-                Component.literal("📁 Додати музику"),
+                Component.translatable("gui.custommusic.add_music"),
                 b -> openAddMusicAction()
         ).bounds(centerRight, topY, 96, 20).build();
         this.addRenderableWidget(addMusicButton);
@@ -82,14 +85,16 @@ public class CustomMusicScreen extends Screen {
         this.importButton = Button.builder(
                 Component.literal("🔄"),
                 b -> startImportProcess()
-        ).bounds(centerRight + 100, topY, 50, 20).build();
+        ).bounds(centerRight + 100, topY, 50, 20)
+         .tooltip(Tooltip.create(Component.translatable("gui.custommusic.reload_tooltip")))
+         .build();
         this.addRenderableWidget(importButton);
 
         // 2. Слайдери затримок між треками (0 - 600 секунд)
         int slidersY = topY + 24;
         this.minDelaySlider = new DelaySlider(
                 centerLeft, slidersY, 150, 20,
-                "Мін. затримка",
+                "gui.custommusic.min_delay",
                 config.getMinDelaySeconds(), 0, 600,
                 val -> {
                     config.setMinDelaySeconds(val);
@@ -102,7 +107,7 @@ public class CustomMusicScreen extends Screen {
 
         this.maxDelaySlider = new DelaySlider(
                 centerRight, slidersY, 150, 20,
-                "Макс. затримка",
+                "gui.custommusic.max_delay",
                 config.getMaxDelaySeconds(), 0, 600,
                 val -> {
                     config.setMaxDelaySeconds(val);
@@ -122,7 +127,7 @@ public class CustomMusicScreen extends Screen {
         // 4. Нижні кнопки: Наступний трек та Готово
         int bottomY = this.height - 28;
         this.addRenderableWidget(Button.builder(
-                Component.literal("Наступний трек ⏭"),
+                Component.translatable("gui.custommusic.next_track"),
                 b -> CustomMusicPlayer.getInstance().playNextTrack()
         ).bounds(this.width / 2 - 155, bottomY, 150, 20).build());
 
@@ -141,21 +146,28 @@ public class CustomMusicScreen extends Screen {
      * Обрана музика БЕЗПЕЧНО копіюється в папку гри (оригінали користувача залишаються недоторканими!).
      */
     private void openAddMusicAction() {
-        this.statusMessage = "§eОберіть музичні файли у вікні...";
+        this.statusComponent = Component.translatable("gui.custommusic.status.choose_files").withStyle(ChatFormatting.YELLOW);
 
         CompletableFuture.runAsync(() -> {
             List<File> selectedFiles = new ArrayList<>();
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            String dialogTitle = I18n.get("gui.custommusic.dialog.title");
+            String filterAudio = I18n.get("gui.custommusic.dialog.filter_audio");
+            String filterAll = I18n.get("gui.custommusic.dialog.filter_all");
 
             // 1. Для Windows запускаємо нативний OpenFileDialog окремим фоновим процесом
             // Це відкриває справжній провідник вибору файлів перед екраном гри
             if (osName.contains("win")) {
                 try {
+                    String escapedTitle = dialogTitle.replace("'", "''");
+                    String escapedAudio = filterAudio.replace("'", "''");
+                    String escapedAll = filterAll.replace("'", "''");
+
                     String psCommand = "Add-Type -AssemblyName System.Windows.Forms; " +
                             "$d = New-Object System.Windows.Forms.OpenFileDialog; " +
                             "$d.Multiselect = $true; " +
-                            "$d.Title = 'Оберіть музику для Minecraft'; " +
-                            "$d.Filter = 'Аудіо файли (*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac)|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|Всі файли (*.*)|*.*'; " +
+                            "$d.Title = '" + escapedTitle + "'; " +
+                            "$d.Filter = '" + escapedAudio + " (*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac)|*.mp3;*.wav;*.flac;*.ogg;*.m4a;*.aac|" + escapedAll + " (*.*)|*.*'; " +
                             "if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $d.FileNames }";
 
                     ProcessBuilder pb = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command", psCommand);
@@ -189,7 +201,7 @@ public class CustomMusicScreen extends Screen {
                     dummyFrame.setVisible(true);
                     dummyFrame.toFront();
 
-                    java.awt.FileDialog dialog = new java.awt.FileDialog(dummyFrame, "Оберіть музичні файли", java.awt.FileDialog.LOAD);
+                    java.awt.FileDialog dialog = new java.awt.FileDialog(dummyFrame, dialogTitle, java.awt.FileDialog.LOAD);
                     dialog.setMultipleMode(true);
                     dialog.setAlwaysOnTop(true);
                     dialog.toFront();
@@ -222,13 +234,13 @@ public class CustomMusicScreen extends Screen {
                 final int count = copied;
                 if (this.minecraft != null) {
                     this.minecraft.execute(() -> {
-                        this.statusMessage = "§aСкопійовано " + count + " треків! Конвертація...";
+                        this.statusComponent = Component.translatable("gui.custommusic.status.copied_converting", count).withStyle(ChatFormatting.GREEN);
                         startImportProcess();
                     });
                 }
             } else {
                 if (this.minecraft != null) {
-                    this.minecraft.execute(() -> this.statusMessage = "");
+                    this.minecraft.execute(() -> this.statusComponent = null);
                 }
             }
         });
@@ -238,7 +250,7 @@ public class CustomMusicScreen extends Screen {
         FfmpegConverter converter = CustomMusicMod.getInstance().getFfmpegConverter();
         List<Path> importFiles = CustomMusicMod.getInstance().getDirectoryManager().getImportFiles();
         if (importFiles.isEmpty()) {
-            this.statusMessage = "§eПапка import/ порожня.";
+            this.statusComponent = Component.translatable("gui.custommusic.status.import_empty").withStyle(ChatFormatting.YELLOW);
             return;
         }
 
@@ -246,19 +258,21 @@ public class CustomMusicScreen extends Screen {
         boolean hasNonOgg = importFiles.stream().anyMatch(p -> !p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".ogg"));
 
         if (hasNonOgg && !converter.isAvailable() && !hasOgg) {
-            this.statusMessage = "§cДля MP3/WAV потрібен FFmpeg! Або використовуйте .ogg треки.";
+            this.statusComponent = Component.translatable("gui.custommusic.status.ffmpeg_required").withStyle(ChatFormatting.RED);
             return;
         }
 
         this.importButton.active = false;
-        this.statusMessage = "§eОбробка треків із папки import/...";
+        this.statusComponent = Component.translatable("gui.custommusic.status.processing_import").withStyle(ChatFormatting.YELLOW);
 
-        converter.convertAllImportsAsync(msg -> this.statusMessage = "§7" + msg)
+        converter.convertAllImportsAsync(msgComp -> this.statusComponent = msgComp.copy().withStyle(ChatFormatting.GRAY))
                 .thenAccept(count -> {
                     if (this.minecraft != null) {
                         this.minecraft.execute(() -> {
                             this.importButton.active = true;
-                            this.statusMessage = count > 0 ? "§aІмпортовано " + count + " треків! Оновлюємо ресурси..." : "§eНових треків не імпортовано.";
+                            this.statusComponent = count > 0
+                                    ? Component.translatable("gui.custommusic.status.imported_count", count).withStyle(ChatFormatting.GREEN)
+                                    : Component.translatable("gui.custommusic.status.no_new_tracks").withStyle(ChatFormatting.YELLOW);
                             CustomMusicMod.getInstance().refreshTracks();
                             refreshList();
                             // Перезавантажуємо ресурси, щоб Minecraft підтягнув нові .ogg треки
@@ -277,7 +291,7 @@ public class CustomMusicScreen extends Screen {
     }
 
     private Component getModeButtonText(PlaybackMode mode) {
-        return Component.literal("Режим: " + mode.getDisplayName());
+        return Component.translatable("gui.custommusic.mode", mode.getComponent());
     }
 
     @Override
@@ -293,8 +307,8 @@ public class CustomMusicScreen extends Screen {
         graphics.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
 
         // Статусне повідомлення (помилки/прогрес конвертації)
-        if (!statusMessage.isEmpty()) {
-            graphics.drawCenteredString(this.font, statusMessage, this.width / 2, 22, 0xFFFFFF);
+        if (statusComponent != null) {
+            graphics.drawCenteredString(this.font, statusComponent, this.width / 2, 22, 0xFFFFFF);
         }
     }
 
