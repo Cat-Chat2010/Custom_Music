@@ -79,8 +79,6 @@ public class CustomMusicScreen extends Screen {
     private Button customizeTrackVolumeButton;
     private CustomVolumeListWidget customVolumeListWidget;
 
-    private Component statusComponent = null;
-
     public CustomMusicScreen(Screen parentScreen) {
         super(Component.translatable("gui.custommusic.title"));
         this.parentScreen = parentScreen;
@@ -237,13 +235,8 @@ public class CustomMusicScreen extends Screen {
         this.trackList = new TrackListWidget(this.minecraft, this.width, listBottom - listTop, listTop, 24, this);
         this.addRenderableWidget(trackList);
 
-        // 5. Нижні кнопки: Наступний трек та Готово
+        // 5. Нижня кнопка: Готово
         int bottomY = this.height - 25;
-        this.addRenderableWidget(Button.builder(
-                Component.translatable("gui.custommusic.next_track"),
-                b -> CustomMusicPlayer.getInstance().playNextTrack()
-        ).bounds(this.width / 2 - 155, bottomY, 150, 20).build());
-
         this.addRenderableWidget(Button.builder(
                 CommonComponents.GUI_DONE,
                 b -> {
@@ -251,7 +244,7 @@ public class CustomMusicScreen extends Screen {
                         this.minecraft.setScreen(this.parentScreen);
                     }
                 }
-        ).bounds(this.width / 2 + 5, bottomY, 150, 20).build());
+        ).bounds((this.width - 150) / 2, bottomY, 150, 20).build());
     }
 
     private void cycleAlbum(int delta) {
@@ -450,18 +443,12 @@ public class CustomMusicScreen extends Screen {
             Component emptyText = Component.translatable("gui.custommusic.volume.no_custom_tracks").withStyle(ChatFormatting.GRAY);
             graphics.drawCenteredString(font, emptyText, this.width / 2, this.height / 2 + 25, 0xFFAAAAAA);
         }
-
-        if (statusComponent != null) {
-            graphics.drawCenteredString(this.font, statusComponent, this.width / 2, this.height - 40, 0xFFFFFFFF);
-        }
     }
 
     /**
      * Відкриває нативне системне вікно вибору файлів (Windows OpenFileDialog / провідник).
      */
     private void openAddMusicAction() {
-        this.statusComponent = Component.translatable("gui.custommusic.status.choose_files").withStyle(ChatFormatting.YELLOW);
-
         CompletableFuture.runAsync(() -> {
             List<File> selectedFiles = new ArrayList<>();
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
@@ -529,31 +516,22 @@ public class CustomMusicScreen extends Screen {
             }
 
             if (selectedFiles.isEmpty()) {
-                if (this.minecraft != null) {
-                    this.minecraft.execute(() -> {
-                        this.statusComponent = Component.translatable("gui.custommusic.status.no_new_tracks").withStyle(ChatFormatting.GRAY);
-                    });
-                }
                 return;
             }
 
             Path tracksDir = CustomMusicMod.getInstance().getDirectoryManager().getTracksDir();
-            int copiedCount = 0;
             for (File sourceFile : selectedFiles) {
                 try {
                     String cleanName = sourceFile.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
                     Path targetPath = tracksDir.resolve(cleanName);
                     Files.copy(sourceFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-                    copiedCount++;
                 } catch (Exception e) {
                     LOGGER.error("[CustomMusic] Помилка копіювання файлу: " + sourceFile.getName(), e);
                 }
             }
 
-            final int finalCopied = copiedCount;
             if (this.minecraft != null) {
                 this.minecraft.execute(() -> {
-                    this.statusComponent = Component.translatable("gui.custommusic.status.copied_ready", finalCopied).withStyle(ChatFormatting.GREEN);
                     CustomMusicMod.getInstance().refreshTracks();
                     refreshList();
                 });

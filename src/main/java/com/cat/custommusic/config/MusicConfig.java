@@ -141,6 +141,20 @@ public class MusicConfig {
         if (activeAlbumId == null || !hasAlbumWithId(activeAlbumId)) {
             activeAlbumId = "all_tracks";
         }
+
+        // Міграція старих назв альбомів ("Альбом N" / "Album N") на "1", "2", ...
+        for (Album a : albums) {
+            if (!a.isPermanent() && a.getName() != null) {
+                String trimmed = a.getName().trim();
+                if (trimmed.matches("(?i)^(Альбом|Album)\\s*\\d+$")) {
+                    int num = 1;
+                    while (hasAlbumWithName(String.valueOf(num))) {
+                        num++;
+                    }
+                    a.setName(String.valueOf(num));
+                }
+            }
+        }
     }
 
     private boolean hasTrackWithId(String id) {
@@ -328,15 +342,15 @@ public class MusicConfig {
     }
 
     /**
-     * Створює новий альбом. Якщо ім'я порожнє, автоматично присвоює "Альбом N" починаючи з 0.
+     * Створює новий альбом. Якщо ім'я порожнє, автоматично присвоює "1", "2" і т.д. без слова "Альбом".
      */
     public synchronized Album createAlbum(String name) {
         if (name == null || name.trim().isEmpty()) {
-            int num = 0;
-            while (hasAlbumWithName("Альбом " + num)) {
+            int num = 1;
+            while (hasAlbumWithName(String.valueOf(num))) {
                 num++;
             }
-            name = "Альбом " + num;
+            name = String.valueOf(num);
         }
         String id = "album_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 5);
         Album album = new Album(id, name.trim(), false, new ArrayList<>());

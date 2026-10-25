@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * Екран для створення нового альбому.
- * Якщо назву не введено, альбом автоматично іменується "Альбом N" починаючи з 0.
+ * Якщо назву не введено, альбом автоматично іменується "1", "2" і т.д.
  */
 public class CreateAlbumScreen extends Screen {
     private final Screen parentScreen;

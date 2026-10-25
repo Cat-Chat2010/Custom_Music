@@ -12,7 +12,7 @@
   "gui.custommusic.album.new": "+ New",
   "gui.custommusic.album.add_song": "+ Song",
   "gui.custommusic.album.create_title": "Create New Album",
-  "gui.custommusic.album.name_placeholder": "Album name (Album N)",
+  "gui.custommusic.album.name_placeholder": "Album name (1, 2...)",
   "gui.custommusic.album.create_button": "Create",
   "gui.custommusic.sort": "↕ %s",
   "gui.custommusic.sort.name": "By Name",

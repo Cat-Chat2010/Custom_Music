@@ -18,7 +18,7 @@ A comprehensive client-side music manager and player for **Minecraft 1.21.1 (Neo
 This project was developed by **Cat-Chat2010** with the assistance of **Artificial Intelligence (Google Antigravity / AI Pair Programming)** for code architecture, mixins, audio streaming engine, and documentation.
 
 * 📂 **Albums & Playlists System:**
-  * Create custom albums and playlists with custom names (defaults to `Album N` if left blank).
+  * Create custom albums and playlists with custom names (defaults to sequential numbers `1`, `2`... if left blank).
   * Permanent built-in album **"All Tracks"** contains all songs and cannot be deleted.
   * Search tracks by title in real-time (`🔍 Search...`).
   * Flexible sorting modes: **By Name**, **By Duration**, **By Type** (`[Custom]`, `[Vanilla]`, `[Disc]`), or **Custom** (manual Drag-and-Drop order persisted in config).
@@ -88,7 +88,7 @@ Distributed under the **MIT License**.
 Цей проєкт створений автором **Cat-Chat2010** за активної участі **штучного інтелекту (Google Antigravity / AI Pair Programming)** для розробки архітектури коду, міксинів, звукового рушія та документації.
 
 * 📂 **Система альбомів та плейлистів:**
-  * Створення власних альбомів і плейлистів з можливістю введення назви (якщо залишити порожнім, автоматично створюється `Альбом N`).
+  * Створення власних альбомів і плейлистів з можливістю введення назви (якщо залишити порожнім, автоматично створюються послідовні номери `1`, `2`...).
   * Постійний альбом **«Усі пісні»**, який містить усі треки і не може бути видалений.
   * Пошук треків за назвою в реальному часі (`🔍 Пошук...`).
   * Зручні режими упорядкування: **За назвою**, **За довжиною**, **За типом** (`[Custom]`, `[Vanilla]`, `[Disc]`) або **Своє** (ручний порядок через Drag-and-Drop, який зберігається у конфігурації).

@@ -37,8 +37,8 @@ public class CustomMusicPlayer {
 
     private SoundInstance currentMusicInstance = null;
     private TrackEntry currentTrack = null;
+    private TrackEntry lastPlayedTrack = null;
     private int nextSongDelayTicks = 100; // Початкова затримка 5 секунд при вході
-    private int sequentialIndex = 0;
 
     private int currentTrackElapsedTicks = 0;
     private int currentTrackTotalDurationTicks = 180 * 20;
@@ -131,6 +131,9 @@ public class CustomMusicPlayer {
 
     private void finishCurrentTrack() {
         LOGGER.info("[CustomMusic] Трек закінчився: {}", currentTrack != null ? currentTrack.getDisplayName() : "Unknown");
+        if (this.currentTrack != null) {
+            this.lastPlayedTrack = this.currentTrack;
+        }
         if (this.currentMusicInstance != null) {
             this.minecraft.getSoundManager().stop(this.currentMusicInstance);
         }
@@ -178,27 +181,39 @@ public class CustomMusicPlayer {
         if (config == null) return;
 
         com.cat.custommusic.config.Album activeAlbum = config.getActiveAlbum();
-        List<TrackEntry> activeTracks = config.getTracksForAlbum(activeAlbum).stream()
-                .filter(TrackEntry::isEnabled)
-                .collect(Collectors.toList());
-
-        if (activeTracks.isEmpty()) {
+        List<TrackEntry> allAlbumTracks = config.getTracksForAlbum(activeAlbum);
+        if (allAlbumTracks.isEmpty()) {
             scheduleNextDelay();
             return;
         }
 
-        int currentIndex = -1;
-        if (this.currentTrack != null) {
-            for (int i = 0; i < activeTracks.size(); i++) {
-                if (activeTracks.get(i).equals(this.currentTrack)) {
-                    currentIndex = i;
+        TrackEntry reference = this.currentTrack != null ? this.currentTrack : this.lastPlayedTrack;
+        int currentFullIndex = -1;
+        if (reference != null) {
+            for (int i = 0; i < allAlbumTracks.size(); i++) {
+                if (allAlbumTracks.get(i).equals(reference)) {
+                    currentFullIndex = i;
                     break;
                 }
             }
         }
 
-        int nextIndex = (currentIndex + 1) % activeTracks.size();
-        playTrack(activeTracks.get(nextIndex));
+        // Шукаємо наступний увімкнений трек (циклічно вперед)
+        TrackEntry nextTrack = null;
+        for (int step = 1; step <= allAlbumTracks.size(); step++) {
+            int candidateIndex = (currentFullIndex + step + allAlbumTracks.size()) % allAlbumTracks.size();
+            TrackEntry candidate = allAlbumTracks.get(candidateIndex);
+            if (candidate.isEnabled()) {
+                nextTrack = candidate;
+                break;
+            }
+        }
+
+        if (nextTrack != null) {
+            playTrack(nextTrack);
+        } else {
+            scheduleNextDelay();
+        }
     }
 
     /**
@@ -209,8 +224,9 @@ public class CustomMusicPlayer {
             this.minecraft.getSoundManager().stop(this.currentMusicInstance);
             this.currentMusicInstance = null;
         }
-        if (this.currentTrack != null && !this.currentTrack.equals(track)) {
-            this.trackHistory.push(this.currentTrack);
+        TrackEntry prev = this.currentTrack != null ? this.currentTrack : this.lastPlayedTrack;
+        if (prev != null && !prev.equals(track)) {
+            this.trackHistory.push(prev);
             if (this.trackHistory.size() > 50) {
                 this.trackHistory.removeLast();
             }
@@ -232,6 +248,7 @@ public class CustomMusicPlayer {
             SoundEvent soundEvent = SoundEvent.createVariableRangeEvent(soundLocation);
             this.currentMusicInstance = new CustomMusicSoundInstance(soundEvent, track);
             this.currentTrack = track;
+            this.lastPlayedTrack = track;
             this.currentTrackElapsedTicks = 0;
 
             // Запускаємо звук у SoundManager: він виконує resolve і обирає конкретний звуковий файл
@@ -274,6 +291,9 @@ public class CustomMusicPlayer {
         if (this.currentMusicInstance != null) {
             this.minecraft.getSoundManager().stop(this.currentMusicInstance);
             this.currentMusicInstance = null;
+            if (this.currentTrack != null) {
+                this.lastPlayedTrack = this.currentTrack;
+            }
             this.currentTrack = null;
             this.currentTrackElapsedTicks = 0;
             com.cat.custommusic.gui.NowPlayingHud.onTrackStopped();
@@ -366,30 +386,34 @@ public class CustomMusicPlayer {
         if (config == null) return;
 
         com.cat.custommusic.config.Album activeAlbum = config.getActiveAlbum();
-        List<TrackEntry> activeTracks = config.getTracksForAlbum(activeAlbum).stream()
-                .filter(TrackEntry::isEnabled)
-                .collect(Collectors.toList());
+        List<TrackEntry> allAlbumTracks = config.getTracksForAlbum(activeAlbum);
+        if (allAlbumTracks.isEmpty()) return;
 
-        if (activeTracks.isEmpty()) return;
-
-        int currentIndex = -1;
-        if (this.currentTrack != null) {
-            for (int i = 0; i < activeTracks.size(); i++) {
-                if (activeTracks.get(i).equals(this.currentTrack)) {
-                    currentIndex = i;
+        TrackEntry reference = this.currentTrack != null ? this.currentTrack : this.lastPlayedTrack;
+        int currentFullIndex = -1;
+        if (reference != null) {
+            for (int i = 0; i < allAlbumTracks.size(); i++) {
+                if (allAlbumTracks.get(i).equals(reference)) {
+                    currentFullIndex = i;
                     break;
                 }
             }
         }
 
-        int prevIndex;
-        if (currentIndex <= 0) {
-            prevIndex = activeTracks.size() - 1;
-        } else {
-            prevIndex = currentIndex - 1;
+        // Шукаємо попередній увімкнений трек (циклічно назад)
+        TrackEntry prevTrack = null;
+        for (int step = 1; step <= allAlbumTracks.size(); step++) {
+            int candidateIndex = (currentFullIndex - step + allAlbumTracks.size() * 2) % allAlbumTracks.size();
+            TrackEntry candidate = allAlbumTracks.get(candidateIndex);
+            if (candidate.isEnabled()) {
+                prevTrack = candidate;
+                break;
+            }
         }
 
-        playTrack(activeTracks.get(prevIndex));
+        if (prevTrack != null) {
+            playTrack(prevTrack);
+        }
     }
 
     public float getTrackEffectiveVolume(TrackEntry track) {
