@@ -137,6 +137,10 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
                     Component.literal(track.isEnabled() ? "✔" : "✕"),
                     b -> {
                         CustomMusicMod.getInstance().getConfig().toggleTrack(track);
+                        CustomMusicPlayer player = CustomMusicPlayer.getInstance();
+                        if (!track.isEnabled() && track.equals(player.getCurrentTrack())) {
+                            player.playNextTrack();
+                        }
                         parentScreen.refreshList();
                         Minecraft.getInstance().getSoundManager().play(
                                 SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)
@@ -152,6 +156,10 @@ public class TrackListWidget extends ContainerObjectSelectionList<TrackListWidge
                         b -> {
                             Album active = CustomMusicMod.getInstance().getConfig().getActiveAlbum();
                             CustomMusicMod.getInstance().getConfig().removeTrackFromAlbum(active, track.getId());
+                            CustomMusicPlayer player = CustomMusicPlayer.getInstance();
+                            if (track.equals(player.getCurrentTrack())) {
+                                player.playNextTrack();
+                            }
                             parentScreen.refreshList();
                             Minecraft.getInstance().getSoundManager().play(
                                     SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F)

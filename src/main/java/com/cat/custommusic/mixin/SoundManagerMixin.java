@@ -16,8 +16,16 @@ public class SoundManagerMixin {
     @Inject(method = "pause", at = @At("TAIL"))
     private void onPause(CallbackInfo ci) {
         // Якщо грає музика і вона не на паузі користувачем, продовжуємо відтворення в налаштуваннях гри
-        if (CustomMusicPlayer.getInstance().isPlaying() && !CustomMusicPlayer.getInstance().isPaused()) {
+        if (CustomMusicPlayer.getInstance().isPlaying() && !CustomMusicPlayer.getInstance().isPaused() && !CustomMusicPlayer.getInstance().isManuallyStopped()) {
             ((SoundManager) (Object) this).resume();
+        }
+    }
+
+    @Inject(method = "resume", at = @At("TAIL"))
+    private void onResume(CallbackInfo ci) {
+        // Якщо музика була поставлена користувачем на паузу або зупинена, вона не повинна відновлюватись автоматично при виході з налаштувань
+        if (CustomMusicPlayer.getInstance().isPaused() || CustomMusicPlayer.getInstance().isManuallyStopped()) {
+            CustomMusicPlayer.getInstance().enforcePause();
         }
     }
 }

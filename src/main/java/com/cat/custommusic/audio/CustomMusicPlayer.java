@@ -212,7 +212,7 @@ public class CustomMusicPlayer {
         if (nextTrack != null) {
             playTrack(nextTrack);
         } else {
-            scheduleNextDelay();
+            stopPlaying();
         }
     }
 
@@ -363,6 +363,11 @@ public class CustomMusicPlayer {
         return this.currentMusicInstance != null;
     }
 
+    @Nullable
+    public SoundInstance getCurrentMusicInstance() {
+        return this.currentMusicInstance;
+    }
+
     public boolean isPaused() {
         return this.isPaused;
     }
@@ -452,10 +457,10 @@ public class CustomMusicPlayer {
      */
     public void pause() {
         if (this.currentMusicInstance != null && !this.isPaused) {
+            this.isPaused = true;
             ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
             if (handle != null) {
                 handle.execute(Channel::pause);
-                this.isPaused = true;
                 LOGGER.info("[CustomMusic] Відтворення призупинено.");
             }
         }
@@ -466,13 +471,45 @@ public class CustomMusicPlayer {
      */
     public void resume() {
         if (this.currentMusicInstance != null && this.isPaused) {
+            this.isPaused = false;
+            this.isManuallyStopped = false;
             ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
             if (handle != null) {
                 handle.execute(Channel::unpause);
-                this.isPaused = false;
                 LOGGER.info("[CustomMusic] Відтворення відновлено з паузи.");
             }
         }
+    }
+
+    /**
+     * Примусово утримує аудіоканал на паузі, якщо користувач зупинив або призупинив трек
+     * (наприклад, при закритті налаштувань гри, коли ванільний двигун намагається відновити всі звуки).
+     */
+    public void enforcePause() {
+        if (this.currentMusicInstance != null && (this.isPaused || this.isManuallyStopped)) {
+            ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+            if (handle != null) {
+                handle.execute(Channel::pause);
+            }
+        }
+    }
+
+    /**
+     * Перевіряє, чи слід заблокувати unpause на рівні конкретного OpenAL каналу
+     * (блокує ванільне відновлення звуків при unpause гри).
+     */
+    public boolean shouldSuppressChannelUnpause(Channel channel) {
+        if (!this.isPaused && !this.isManuallyStopped) {
+            return false;
+        }
+        if (this.currentMusicInstance == null) {
+            return false;
+        }
+        ChannelAccess.ChannelHandle handle = getChannelHandle(this.currentMusicInstance);
+        if (handle instanceof com.cat.custommusic.mixin.ChannelHandleAccessor accessor) {
+            return accessor.custommusic$getChannel() == channel;
+        }
+        return false;
     }
 
     /**

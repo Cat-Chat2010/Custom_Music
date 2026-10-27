@@ -8,6 +8,8 @@
     "SoundManagerMixin",
     "SoundBufferLibraryMixin",
     "ChannelMixin",
+    "ChannelHandleAccessor",
+    "SoundEngineMixin",
     "SoundEngineAccessor",
     "SoundManagerAccessor"
   ],

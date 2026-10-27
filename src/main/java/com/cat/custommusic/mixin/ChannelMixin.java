@@ -47,4 +47,11 @@ public abstract class ChannelMixin implements ISeekableChannel {
             return false;
         }
     }
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "unpause", at = @org.spongepowered.asm.mixin.injection.At("HEAD"), cancellable = true)
+    private void onUnpause(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (com.cat.custommusic.audio.CustomMusicPlayer.getInstance().shouldSuppressChannelUnpause((Channel) (Object) this)) {
+            ci.cancel();
+        }
+    }
 }
